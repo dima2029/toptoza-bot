@@ -19,6 +19,8 @@ Telegram-бот отчётов «ТОП-ТОЗА» — две точки, два
 """
 
 import os
+import io
+import csv
 import json
 import logging
 import datetime as dt
@@ -28,6 +30,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 import sheets  # общий модуль чтения журнала/дашборда (используется и сайтом)
+import db      # хранилище (Postgres) — для авто-синхронизации и бэкапа
 
 # Ссылка на веб-панель и время авто-отчёта
 SITE_URL = os.environ.get("SITE_URL", "https://toptoza.up.railway.app")
@@ -393,13 +396,96 @@ async def daily_report_job(context: ContextTypes.DEFAULT_TYPE):
             log.warning("Не смог отправить отчёт %s: %s", uid, e)
 
 
-def _report_time():
-    """Время авто-отчёта. Пробуем Душанбе (UTC+5), иначе считаем в UTC."""
+def _local_time(hour):
+    """Время по Душанбе (UTC+5); если zoneinfo недоступен — считаем в UTC."""
     try:
         from zoneinfo import ZoneInfo
-        return dt.time(hour=REPORT_HOUR, tzinfo=ZoneInfo("Asia/Dushanbe"))
+        return dt.time(hour=hour, tzinfo=ZoneInfo("Asia/Dushanbe"))
     except Exception:
-        return dt.time(hour=(REPORT_HOUR - 5) % 24)
+        return dt.time(hour=(hour - 5) % 24)
+
+
+async def _notify(context, text):
+    """Отправить сообщение всем разрешённым пользователям (директору)."""
+    for uid in (ALLOWED_USERS or []):
+        try:
+            await context.bot.send_message(uid, text, parse_mode="Markdown",
+                                           disable_web_page_preview=True)
+        except Exception as e:
+            log.warning("notify %s: %s", uid, e)
+
+
+# активные проблемы с таблицами — чтобы не слать алерт каждый час
+_alerted = set()
+
+
+async def sync_job(context: ContextTypes.DEFAULT_TYPE):
+    """Раз в час: тянем журнал из Google Таблиц в базу + проверяем, не сломалась ли таблица."""
+    try:
+        db.init_db()
+    except Exception as e:
+        log.warning("db init: %s", e)
+        return
+    problems = {}
+    for p in sheets.POINTS:
+        name = p["name"]
+        try:
+            ops = sheets.read_journal(p)
+            if ops:
+                db.sync_point(p["key"], ops)
+            else:
+                dmin, _ = db.date_bounds([p["key"]])
+                if dmin is not None:  # раньше данные были, а теперь пусто → подозрительно
+                    problems[f"журнал «{name}»"] = "пусто или нет доступа"
+        except Exception as e:
+            problems[f"журнал «{name}»"] = str(e)[:140]
+        try:
+            if not sheets.read_dashboard(p):
+                problems[f"дашборд «{name}»"] = "лист «Дашборд» пуст"
+        except Exception as e:
+            problems[f"дашборд «{name}»"] = str(e)[:140]
+
+    new = set(problems) - _alerted
+    fixed = _alerted - set(problems)
+    for k in sorted(new):
+        await _notify(context, f"⚠️ *Проблема с таблицей*\n{k}: {problems[k]}\n"
+                               "Сайт может показывать устаревшие данные.")
+    for k in sorted(fixed):
+        await _notify(context, f"✅ Таблица — {k} — снова в порядке.")
+    _alerted.clear()
+    _alerted.update(problems)
+
+
+async def backup_job(context: ContextTypes.DEFAULT_TYPE):
+    """Раз в день: выгружаем все операции из базы и присылаем файлом в Telegram."""
+    try:
+        ops = db.query_ops(["km9", "gulbuta"])
+    except Exception as e:
+        log.warning("backup query: %s", e)
+        return
+    if not ops:
+        return
+    buf = io.StringIO()
+    buf.write("﻿")
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Дата", "Точка", "Раздел", "Статья", "Описание", "Приход", "Расход"])
+    for o in ops:
+        w.writerow([
+            o["date"].strftime("%d.%m.%Y") if o["date"] else "",
+            o["point"], o["section"], o["article"], o["desc"],
+            round(o["income"]) if o["income"] else "",
+            round(o["expense"]) if o["expense"] else "",
+        ])
+    data = buf.getvalue().encode("utf-8")
+    fname = f"toptoza_backup_{dt.date.today():%Y-%m-%d}.csv"
+    cap = f"🗄 Бэкап базы на {dt.date.today():%d.%m.%Y} · {len(ops)} операций"
+    for uid in (ALLOWED_USERS or []):
+        try:
+            bio = io.BytesIO(data)
+            bio.name = fname
+            await context.bot.send_document(uid, document=bio, filename=fname, caption=cap)
+        except Exception as e:
+            log.warning("backup send %s: %s", uid, e)
 
 
 def main():
@@ -427,13 +513,16 @@ def main():
     app.add_handler(CommandHandler("report", report_cmd))
     app.add_handler(CommandHandler("svodka", report_cmd))
 
-    # Авто-отчёт раз в день (нужен extra job-queue; если нет — просто пропускаем)
+    # Расписание (нужен extra job-queue; если нет — просто пропускаем)
     if app.job_queue is not None:
-        app.job_queue.run_daily(daily_report_job, time=_report_time(),
-                                name="daily_report")
-        log.info("Авто-отчёт включён на %02d:00 (Душанбе)", REPORT_HOUR)
+        jq = app.job_queue
+        jq.run_daily(daily_report_job, time=_local_time(REPORT_HOUR), name="daily_report")
+        jq.run_repeating(sync_job, interval=3600, first=15, name="hourly_sync")
+        jq.run_daily(backup_job, time=_local_time(23), name="daily_backup")
+        log.info("Расписание: отчёт %02d:00, синхронизация каждый час, бэкап 23:00 (Душанбе)",
+                 REPORT_HOUR)
     else:
-        log.warning("job-queue недоступен — авто-отчёт выключен")
+        log.warning("job-queue недоступен — авто-задачи выключены")
 
     log.info("Бот запущен. Ожидаю команды…")
     app.run_polling(allowed_updates=Update.ALL_TYPES)

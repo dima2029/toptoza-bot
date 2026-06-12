@@ -1,0 +1,12 @@
+# секреты — никогда не коммитим
+service_account.json
+.env
+
+# данные (выгрузки таблиц)
+*.xlsx
+*.xls
+
+# python
+__pycache__/
+*.pyc
+.venv/

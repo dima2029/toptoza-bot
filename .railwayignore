@@ -1,0 +1,4 @@
+toptoza.db
+__pycache__/
+*.pyc
+.railway/

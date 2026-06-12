@@ -21,10 +21,17 @@ Telegram-бот отчётов «ТОП-ТОЗА» — две точки, два
 import os
 import json
 import logging
+import datetime as dt
 
 import gspread
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
+
+import sheets  # общий модуль чтения журнала/дашборда (используется и сайтом)
+
+# Ссылка на веб-панель и время авто-отчёта
+SITE_URL = os.environ.get("SITE_URL", "https://toptoza.up.railway.app")
+REPORT_HOUR = int(os.environ.get("REPORT_HOUR", "21"))  # час по Душанбе (UTC+5)
 
 # ======================= НАСТРОЙКИ =======================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "ВСТАВЬТЕ_СЮДА_ТОКЕН_БОТА")
@@ -219,10 +226,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Привет! Я бот отчётов ТОП-ТОЗА.\n\n"
         "Команды:\n"
+        "/svodka — сводка за сегодня + за месяц\n"
+        "/dashboard — ссылка на веб-панель\n"
         "/otchet — общий итог + обе точки\n"
         "/km9 — только точка «9 км»\n"
         "/gulbuta — только точка «Гульбута»\n"
-        "/myid — узнать свой Telegram id"
+        "/myid — узнать свой Telegram id\n\n"
+        f"📲 Каждый вечер в {REPORT_HOUR}:00 пришлю сводку сам."
     )
 
 
@@ -293,6 +303,105 @@ async def otchet(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+def build_daily_report():
+    """Текст ежедневной сводки: за сегодня (журнал) + за месяц (Дашборд) + светофор."""
+    today = dt.date.today()
+    day_in = day_exp = 0.0
+    mon = {"Выручка": 0, "Чистая прибыль": 0, "Сумма долга": 0,
+           "Всего заказов": 0, "Выдано": 0, "В работе": 0}
+    notes = []
+    for p in sheets.POINTS:
+        try:
+            for o in sheets.read_journal(p):
+                if o["date"] == today:
+                    day_in += o["income"]
+                    day_exp += o["expense"]
+        except Exception as e:
+            notes.append(f"журнал {p['name']}: {e}")
+        try:
+            d = sheets.read_dashboard(p)
+            for items in d.values():
+                for k in mon:
+                    if k in items:
+                        mon[k] += items[k]
+        except Exception as e:
+            notes.append(f"дашборд {p['name']}: {e}")
+
+    def f(n):
+        return f"{round(n):,}".replace(",", " ")
+
+    net = day_in - day_exp
+    light = "🟢" if (mon["Выручка"] and mon["Чистая прибыль"] >= 0) else "🟡"
+    lines = [
+        f"📊 *ТОП-ТОЗА — сводка на {today.strftime('%d.%m.%Y')}*",
+        "",
+        "*За сегодня:*",
+        f"• Приход: {f(day_in)} сом.",
+        f"• Расход: {f(day_exp)} сом.",
+        f"• Чистый поток: {f(net)} сом.",
+        "",
+        f"*За месяц* {light}",
+        f"• Выручка: {f(mon['Выручка'])} сом.",
+        f"• Чистая прибыль: {f(mon['Чистая прибыль'])} сом.",
+        f"• Долг клиентов: {f(mon['Сумма долга'])} сом.",
+        f"• Заказов: {f(mon['Всего заказов'])} (в работе {f(mon['В работе'])})",
+        "",
+        f"🔗 Подробнее на сайте: {SITE_URL}",
+    ]
+    if notes:
+        lines.append("\n⚠️ " + "; ".join(notes))
+    return "\n".join(lines)
+
+
+async def dashboard_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_allowed(update):
+        await update.message.reply_text("⛔ У вас нет доступа.")
+        return
+    await update.message.reply_text(
+        f"🔗 Веб-панель отчётов:\n{SITE_URL}\n\nОткрой ссылку и войди по паролю.",
+        disable_web_page_preview=True,
+    )
+
+
+async def report_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_allowed(update):
+        await update.message.reply_text("⛔ У вас нет доступа.")
+        return
+    await update.message.reply_text("Собираю сводку, секунду…")
+    try:
+        text = build_daily_report()
+    except Exception as e:
+        log.exception("report")
+        await update.message.reply_text(f"Не удалось собрать сводку: {e}")
+        return
+    await update.message.reply_text(text, parse_mode="Markdown",
+                                    disable_web_page_preview=True)
+
+
+async def daily_report_job(context: ContextTypes.DEFAULT_TYPE):
+    """Авто-отправка сводки всем разрешённым пользователям."""
+    try:
+        text = build_daily_report()
+    except Exception as e:
+        log.exception("daily report build")
+        return
+    for uid in (ALLOWED_USERS or []):
+        try:
+            await context.bot.send_message(uid, text, parse_mode="Markdown",
+                                           disable_web_page_preview=True)
+        except Exception as e:
+            log.warning("Не смог отправить отчёт %s: %s", uid, e)
+
+
+def _report_time():
+    """Время авто-отчёта. Пробуем Душанбе (UTC+5), иначе считаем в UTC."""
+    try:
+        from zoneinfo import ZoneInfo
+        return dt.time(hour=REPORT_HOUR, tzinfo=ZoneInfo("Asia/Dushanbe"))
+    except Exception:
+        return dt.time(hour=(REPORT_HOUR - 5) % 24)
+
+
 def main():
     problems = []
     if "ВСТАВЬТЕ" in BOT_TOKEN:
@@ -313,6 +422,18 @@ def main():
     app.add_handler(CommandHandler("otchet", otchet))
     app.add_handler(CommandHandler("km9", km9))
     app.add_handler(CommandHandler("gulbuta", gulbuta))
+    app.add_handler(CommandHandler("dashboard", dashboard_cmd))
+    app.add_handler(CommandHandler("sait", dashboard_cmd))
+    app.add_handler(CommandHandler("report", report_cmd))
+    app.add_handler(CommandHandler("svodka", report_cmd))
+
+    # Авто-отчёт раз в день (нужен extra job-queue; если нет — просто пропускаем)
+    if app.job_queue is not None:
+        app.job_queue.run_daily(daily_report_job, time=_report_time(),
+                                name="daily_report")
+        log.info("Авто-отчёт включён на %02d:00 (Душанбе)", REPORT_HOUR)
+    else:
+        log.warning("job-queue недоступен — авто-отчёт выключен")
 
     log.info("Бот запущен. Ожидаю команды…")
     app.run_polling(allowed_updates=Update.ALL_TYPES)

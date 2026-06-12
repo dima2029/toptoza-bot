@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ТОП-ТОЗА · {{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители'}[data.section] }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+{% set CUR = 'сом.' %}
+{% set S = data.section %}
+{% macro plink(period, label) %}<a class="pill {{ 'active' if data.period==period else '' }}" href="?section={{ S }}&period={{ period }}&view={{ data.view }}">{{ label }}</a>{% endmacro %}
+{% macro vlink(view, label) %}<a class="pill {{ 'active' if data.view==view else '' }}" href="?section={{ S }}&period={{ data.period }}&view={{ view }}">{{ label }}</a>{% endmacro %}
+{% macro nlink(sec, icon, label) %}<a class="nav-item {{ 'active' if S==sec else '' }}" href="?section={{ sec }}&period={{ data.period }}&view={{ data.view }}">{{ icon }} {{ label }}</a>{% endmacro %}
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">Т</div>
+      <div><div class="brand">ТОП-ТОЗА</div><div class="brand-sub">Отчёты директора</div></div>
+    </div>
+    <div class="nav-section">Обзор</div>
+    {{ nlink('summary','📊','Сводка') }}
+    {{ nlink('money','💵','Деньги') }}
+    {{ nlink('orders','🧺','Заказы') }}
+    {{ nlink('debts','🧾','Долги') }}
+    <div class="nav-section">Аналитика</div>
+    {{ nlink('points','📍','Точки') }}
+    {{ nlink('drivers','🚗','Водители') }}
+    <div class="sidebar-footer">
+      <div class="avatar">Д</div>
+      <div style="flex:1"><div class="who">Директор</div><div class="who-sub">{{ data.range }}</div></div>
+      <a href="{{ url_for('logout') }}" class="who-sub" title="Выйти">⎋</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title">{{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители'}[S] }}<small>{{ data.plabel }} · {{ {'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view] }}</small></div>
+      <div class="filters">
+        {{ plink('today','Сегодня') }}{{ plink('yesterday','Вчера') }}{{ plink('7d','7 дней') }}{{ plink('month','Месяц') }}{{ plink('all','Всё') }}
+        <div class="sep"></div>
+        {{ vlink('total','Обе') }}{{ vlink('km9','9 км') }}{{ vlink('gulbuta','Гульбута') }}
+      </div>
+    </div>
+
+    <div class="content">
+    {# ───────────── СВОДКА ───────────── #}
+    {% if S == 'summary' %}
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Приход</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
+        <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
+        <div class="kpi-card"><div class="kpi-label">Чистый поток</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">приход − расход</div></div>
+        <div class="kpi-card"><div class="kpi-label">Операций</div><div class="kpi-value">{{ data.agg.count }}</div><div class="kpi-sub">записей в журнале</div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="card"><div class="card-header"><div class="card-title">Приход и расход по дням</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="190"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Куда уходят деньги</div></div><div class="card-body"><canvas id="cExp" height="190"></canvas></div></div>
+      </div>
+      <div class="two">
+        <div class="card"><div class="card-header"><div class="card-title">Операции</div><span class="badge badge-gold">журнал ДДС</span></div>
+          {% if data.recent %}{% for o in data.recent[:12] %}
+          <div class="op-row"><div class="op-icon {{ 'op-icon-in' if o.in else 'op-icon-out' }}">{{ '↓' if o.in else '↑' }}</div>
+            <div class="op-info"><div class="op-desc">{{ o.desc }}</div><div class="op-meta">{{ o.meta }}</div></div>
+            <div class="op-amount {{ 'text-green' if o.in else 'text-red' }}">{{ '+' if o.in else '−' }}{{ fmt(o.amount) }} <span class="op-cur">{{ CUR }}</span></div></div>
+          {% endfor %}{% else %}<div class="empty">За этот период операций нет.<br>Выбери период «Всё».</div>{% endif %}
+        </div>
+        <div class="card"><div class="card-header"><div class="card-title">Сравнение точек</div></div><div class="card-body"><div class="company-bars" id="cmp"></div></div></div>
+      </div>
+      {% if data.monthly %}
+      <div class="card"><div class="card-header"><div class="card-title">Месячный итог</div><span class="badge badge-green">из листа «Дашборд»</span></div>
+        <div class="card-body"><div class="mini-grid">
+          <div class="mini"><div class="l">Выручка</div><div class="v text-green">{{ fmt(data.monthly['Выручка']) }}</div></div>
+          <div class="mini"><div class="l">Чистая прибыль</div><div class="v text-blue">{{ fmt(data.monthly['Чистая прибыль']) }}</div></div>
+          <div class="mini"><div class="l">Долг клиентов</div><div class="v text-red">{{ fmt(data.monthly['Сумма долга']) }}</div></div>
+          <div class="mini"><div class="l">Всего заказов</div><div class="v">{{ fmt(data.monthly['Всего заказов']) }}</div></div>
+          <div class="mini"><div class="l">Выдано</div><div class="v">{{ fmt(data.monthly['Выдано']) }}</div></div>
+          <div class="mini"><div class="l">В работе</div><div class="v text-gold">{{ fmt(data.monthly['В работе']) }}</div></div>
+        </div></div></div>
+      {% endif %}
+
+    {# ───────────── ДЕНЬГИ ───────────── #}
+    {% elif S == 'money' %}
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Приход</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">Чистый поток</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">Операций</div><div class="kpi-value">{{ data.agg.count }}</div></div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Приход и расход по дням</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="120"></canvas></div></div>
+      <div class="charts-grid">
+        <div class="card"><div class="card-header"><div class="card-title">Расходы по статьям</div></div><div class="card-body"><canvas id="cExp" height="200"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Приход по статьям</div></div><div class="card-body"><canvas id="cInc" height="200"></canvas></div></div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Все операции за период</div><span class="badge badge-gold">{{ data.agg.count }}</span></div>
+        {% if data.recent %}{% for o in data.recent %}
+        <div class="op-row"><div class="op-icon {{ 'op-icon-in' if o.in else 'op-icon-out' }}">{{ '↓' if o.in else '↑' }}</div>
+          <div class="op-info"><div class="op-desc">{{ o.desc }}</div><div class="op-meta">{{ o.meta }}</div></div>
+          <div class="op-amount {{ 'text-green' if o.in else 'text-red' }}">{{ '+' if o.in else '−' }}{{ fmt(o.amount) }} <span class="op-cur">{{ CUR }}</span></div></div>
+        {% endfor %}{% else %}<div class="empty">За этот период операций нет.</div>{% endif %}
+      </div>
+
+    {# ───────────── ЗАКАЗЫ ───────────── #}
+    {% elif S == 'orders' %}
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Всего заказов</div><div class="kpi-value">{{ fmt(data.monthly['Всего заказов']) }}</div><div class="kpi-sub">за месяц</div></div>
+        <div class="kpi-card"><div class="kpi-label">Выдано</div><div class="kpi-value text-green">{{ fmt(data.monthly['Выдано']) }}</div><div class="kpi-sub">готово и забрали</div></div>
+        <div class="kpi-card"><div class="kpi-label">В работе</div><div class="kpi-value text-gold">{{ fmt(data.monthly['В работе']) }}</div><div class="kpi-sub">ещё не выданы</div></div>
+        <div class="kpi-card"><div class="kpi-label">Выручка</div><div class="kpi-value text-green">{{ fmt(data.monthly['Выручка']) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Заказы по точкам</div><span class="badge badge-green">за месяц</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Точка</th><th>Всего</th><th>Выдано</th><th>В работе</th><th>Выручка</th></tr></thead>
+          <tbody>
+          {% for k,n in POINT_NAME.items() %}{% set m = data.monthly_by_point[k] %}
+            <tr><td><b>{{ n }}</b></td><td>{{ fmt(m['Всего заказов']) }}</td><td>{{ fmt(m['Выдано']) }}</td><td>{{ fmt(m['В работе']) }}</td><td>{{ fmt(m['Выручка']) }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+      </div>
+      <div class="card"><div class="card-body"><div class="empty">Детали по каждому ковру (клиент, площадь м², статус, срок) появятся, когда заведём отдельный лист «Заказы» в нужном формате.</div></div></div>
+
+    {# ───────────── ДОЛГИ ───────────── #}
+    {% elif S == 'debts' %}
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Долг — всего</div><div class="kpi-value text-red">{{ fmt(data.monthly['Сумма долга']) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        {% for k,n in POINT_NAME.items() %}{% set m = data.monthly_by_point[k] %}
+        <div class="kpi-card"><div class="kpi-label">Долг · {{ n }}</div><div class="kpi-value text-red">{{ fmt(m['Сумма долга']) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        {% endfor %}
+        <div class="kpi-card"><div class="kpi-label">В работе (заказы)</div><div class="kpi-value text-gold">{{ fmt(data.monthly['В работе']) }}</div><div class="kpi-sub">сумма заказов в работе</div></div>
+      </div>
+      <div class="card"><div class="card-body"><div class="empty">Список «кто и сколько должен» по клиентам появится, когда добавим лист с долгами клиентов (имя, сумма, дата).<br>Сейчас показана общая сумма долга из листа «Дашборд».</div></div></div>
+
+    {# ───────────── ТОЧКИ ───────────── #}
+    {% elif S == 'points' %}
+      <div class="charts-grid">
+        {% for c in data.compare %}{% set m = data.monthly_by_point[ 'km9' if c.name=='9 км' else 'gulbuta' ] %}
+        <div class="card"><div class="card-header"><div class="card-title">📍 {{ c.name }}</div></div>
+          <div class="card-body"><div class="mini-grid" style="grid-template-columns:1fr 1fr">
+            <div class="mini"><div class="l">Приход (период)</div><div class="v text-green">{{ fmt(c.income) }}</div></div>
+            <div class="mini"><div class="l">Расход (период)</div><div class="v text-red">{{ fmt(c.expense) }}</div></div>
+            <div class="mini"><div class="l">Чистый поток</div><div class="v {{ 'text-green' if c.net>=0 else 'text-red' }}">{{ fmt(c.net) }}</div></div>
+            <div class="mini"><div class="l">Выручка (месяц)</div><div class="v text-green">{{ fmt(m['Выручка']) }}</div></div>
+            <div class="mini"><div class="l">Прибыль (месяц)</div><div class="v text-blue">{{ fmt(m['Чистая прибыль']) }}</div></div>
+            <div class="mini"><div class="l">Долг</div><div class="v text-red">{{ fmt(m['Сумма долга']) }}</div></div>
+          </div></div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Сравнение точек</div></div><div class="card-body"><div class="company-bars" id="cmp"></div></div></div>
+
+    {# ───────────── ВОДИТЕЛИ ───────────── #}
+    {% elif S == 'drivers' %}
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Приход (выручка)</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
+        <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">Чистый поток</div><div class="kpi-value text-green">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">Операций</div><div class="kpi-value">{{ data.agg.count }}</div></div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Приход по статьям</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cInc" height="150"></canvas></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">Поступления (выручка от водителей)</div></div>
+        {% set drv = data.recent | selectattr('in') | list %}
+        {% if drv %}{% for o in drv[:25] %}
+        <div class="op-row"><div class="op-icon op-icon-in">↓</div>
+          <div class="op-info"><div class="op-desc">{{ o.desc }}</div><div class="op-meta">{{ o.meta }}</div></div>
+          <div class="op-amount text-green">+{{ fmt(o.amount) }} <span class="op-cur">{{ CUR }}</span></div></div>
+        {% endfor %}{% else %}<div class="empty">За этот период поступлений нет.</div>{% endif %}
+      </div>
+      <div class="card"><div class="card-body"><div class="empty">Разбивка по конкретным водителям (имя, рейсы, ГСМ, ЗП) появится, когда заведём лист с водителями в нужном формате.</div></div></div>
+    {% endif %}
+    </div>
+  </main>
+</div>
+
+<script>
+const D = {{ data|tojson }};
+const CUR = "сом.";
+const fmt = n => Math.round(n||0).toLocaleString("ru-RU").replace(/,/g," ");
+Chart.defaults.font.family="'Inter',sans-serif";Chart.defaults.color="#8A92A6";Chart.defaults.font.size=12;
+const LG={plugins:{legend:{labels:{usePointStyle:true,pointStyle:"circle",boxWidth:7,padding:14}}}};
+const PIE=["#F0455A","#F59E0B","#2563EB","#8B5CF6","#0EA5E9","#00B956","#EC4899","#64748B"];
+const $=id=>document.getElementById(id);
+
+if($("cBar")){const days=D.agg.by_day;new Chart(cBar,{type:"bar",data:{labels:days.map(d=>d.date),datasets:[
+  {label:"Приход",data:days.map(d=>d.income),backgroundColor:"#00B956",borderRadius:5,maxBarThickness:26},
+  {label:"Расход",data:days.map(d=>d.expense),backgroundColor:"#F0455A",borderRadius:5,maxBarThickness:26}]},
+  options:{...LG,scales:{x:{grid:{display:false}},y:{grid:{color:"#EDEFF3"}}}}});}
+
+if($("cExp")){const a=D.agg.by_article;new Chart(cExp,{type:"doughnut",data:{labels:a.map(x=>x.article),datasets:[{data:a.map(x=>x.sum),backgroundColor:PIE,borderWidth:0}]},options:{...LG,cutout:"62%"}});}
+if($("cInc")){const a=D.agg.inc_article;new Chart(cInc,{type:"doughnut",data:{labels:a.map(x=>x.article),datasets:[{data:a.map(x=>x.sum),backgroundColor:["#00B956","#2563EB","#0EA5E9","#8B5CF6","#F59E0B","#EC4899","#64748B","#F0455A"],borderWidth:0}]},options:{...LG,cutout:"62%"}});}
+
+if($("cmp")){const cmp=D.compare,mx=Math.max(1,...cmp.flatMap(c=>[c.income,Math.abs(c.net)]));
+  $("cmp").innerHTML=cmp.map(c=>`
+  <div class="cb-row"><div class="cb-label"><span>${c.name} · приход</span><b>${fmt(c.income)}</b></div>
+    <div class="cb-track"><div class="cb-fill" style="width:${Math.max(2,c.income/mx*100)}%;background:#00B956"></div></div></div>
+  <div class="cb-row"><div class="cb-label"><span>${c.name} · чистый поток</span><b>${fmt(c.net)}</b></div>
+    <div class="cb-track"><div class="cb-fill" style="width:${Math.max(2,Math.abs(c.net)/mx*100)}%;background:${c.net>=0?'#2563EB':'#F0455A'}"></div></div></div>`).join("");}
+</script>
+</body>
+</html>

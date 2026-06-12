@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ТОП-ТОЗА · Вход</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="mark">Т</div>
+      <div class="name">ТОП-ТОЗА</div>
+      <div class="sub">Отчёты директора</div>
+    </div>
+    {% with msgs = get_flashed_messages() %}
+      {% if msgs %}<div class="error-msg">{{ msgs[0] }}</div>{% endif %}
+    {% endwith %}
+    <form method="post">
+      <label class="form-label">Пароль</label>
+      <input class="form-input" type="password" name="password" autofocus placeholder="••••••••">
+      <button class="btn btn-primary" type="submit">Войти</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

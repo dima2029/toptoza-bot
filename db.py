@@ -42,8 +42,33 @@ class Transaction(Base):
     expense = Column(Float, default=0.0)
 
 
+class Setting(Base):
+    __tablename__ = "settings"
+    key = Column(Str(64), primary_key=True)
+    value = Column(String(256))
+
+
 def init_db():
     Base.metadata.create_all(engine)
+
+
+def get_setting(key, default=None):
+    try:
+        with Session() as s:
+            row = s.get(Setting, key)
+            return row.value if row else default
+    except Exception:
+        return default
+
+
+def set_setting(key, value):
+    with Session() as s:
+        row = s.get(Setting, key)
+        if row:
+            row.value = str(value)
+        else:
+            s.add(Setting(key=key, value=str(value)))
+        s.commit()
 
 
 def _uid(point, op):

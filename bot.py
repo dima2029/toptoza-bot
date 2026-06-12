@@ -26,8 +26,9 @@ import logging
 import datetime as dt
 
 import gspread
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (Application, CommandHandler, CallbackQueryHandler,
+                          ContextTypes)
 
 import sheets    # общий модуль чтения журнала/дашборда (используется и сайтом)
 import db        # хранилище (Postgres) — для авто-синхронизации и бэкапа
@@ -238,7 +239,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/km9 — только точка «9 км»\n"
         "/gulbuta — только точка «Гульбута»\n"
         "/myid — узнать свой Telegram id\n\n"
-        f"📲 Каждый вечер в {REPORT_HOUR}:00 пришлю сводку сам."
+        f"📲 Каждый вечер в {REPORT_HOUR}:00 пришлю сводку сам.",
+        reply_markup=main_keyboard(),
     )
 
 
@@ -398,6 +400,8 @@ async def report_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def daily_report_job(context: ContextTypes.DEFAULT_TYPE):
     """Авто-отправка сводки всем разрешённым пользователям."""
+    if db.get_setting("daily_on", "1") != "1":
+        return
     try:
         text = build_daily_report()
     except Exception as e:
@@ -557,6 +561,118 @@ async def backup_job(context: ContextTypes.DEFAULT_TYPE):
             log.warning("backup send %s: %s", uid, e)
 
 
+# ───────────────────── кнопки, меню, настройки ─────────────────────
+def main_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Сводка", callback_data="svodka")],
+        [InlineKeyboardButton("📍 9 км", callback_data="km9"),
+         InlineKeyboardButton("📍 Гульбута", callback_data="gulbuta")],
+        [InlineKeyboardButton("🌐 Открыть сайт", callback_data="site"),
+         InlineKeyboardButton("⚙️ Настройки", callback_data="settings")],
+    ])
+
+
+def settings_keyboard():
+    on = db.get_setting("daily_on", "1") == "1"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"🔔 Авто-отчёт: {'ВКЛ ✅' if on else 'ВЫКЛ ⛔'}",
+                              callback_data="toggle_daily")],
+        [InlineKeyboardButton("📤 Прислать сводку сейчас", callback_data="svodka")],
+        [InlineKeyboardButton("⬅️ Назад", callback_data="menu")],
+    ])
+
+
+def _settings_text():
+    on = db.get_setting("daily_on", "1") == "1"
+    return ("⚙️ *Настройки уведомлений*\n\n"
+            f"• Ежедневная сводка в {REPORT_HOUR}:00 — {'включена ✅' if on else 'выключена ⛔'}\n"
+            "• Итоги недели — по понедельникам\n"
+            "• Итоги месяца — 1-го числа\n"
+            "• Бэкап базы — каждый день в 23:00")
+
+
+async def menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_allowed(update):
+        await update.message.reply_text("⛔ У вас нет доступа.")
+        return
+    await update.message.reply_text("Что показать?", reply_markup=main_keyboard())
+
+
+async def settings_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_allowed(update):
+        await update.message.reply_text("⛔ У вас нет доступа.")
+        return
+    await update.message.reply_text(_settings_text(), parse_mode="Markdown",
+                                    reply_markup=settings_keyboard())
+
+
+async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    if ALLOWED_USERS and q.from_user.id not in ALLOWED_USERS:
+        await q.message.reply_text("⛔ Нет доступа.")
+        return
+    chat = q.message.chat_id
+    data = q.data
+    if data == "svodka":
+        await context.bot.send_message(chat, "Собираю сводку…")
+        await context.bot.send_message(chat, build_daily_report(),
+                                       parse_mode="Markdown", disable_web_page_preview=True)
+    elif data in ("km9", "gulbuta"):
+        point = POINTS[0 if data == "km9" else 1]
+        try:
+            parsed = read_point(point)
+            await context.bot.send_message(chat, render_point(parsed, point["name"]),
+                                           parse_mode="Markdown")
+        except Exception as e:
+            await context.bot.send_message(chat, f"Не получилось: {e}")
+    elif data == "site":
+        await context.bot.send_message(chat, f"🔗 {SITE_URL}", disable_web_page_preview=True)
+    elif data == "menu":
+        await q.edit_message_text("Что показать?", reply_markup=main_keyboard())
+    elif data == "settings":
+        await q.edit_message_text(_settings_text(), parse_mode="Markdown",
+                                  reply_markup=settings_keyboard())
+    elif data == "toggle_daily":
+        cur = db.get_setting("daily_on", "1") == "1"
+        db.set_setting("daily_on", "0" if cur else "1")
+        await q.edit_message_text(_settings_text(), parse_mode="Markdown",
+                                  reply_markup=settings_keyboard())
+
+
+def build_period_report(title, start, end):
+    ops = db.query_ops(["km9", "gulbuta"], start, end)
+    inc = sum(o["income"] for o in ops)
+    exp = sum(o["expense"] for o in ops)
+    lines = [f"🗓 *{title}*", "",
+             f"• Приход: {fmt_money(inc)} сом.",
+             f"• Расход: {fmt_money(exp)} сом.",
+             f"• Чистый поток: {fmt_money(inc - exp)} сом."]
+    ins = insights.narrative(ops)
+    if ins:
+        lines.append("")
+        lines.append("*Выводы:*")
+        lines += ["• " + line for line in ins[:4]]
+    lines += ["", f"🔗 {SITE_URL}"]
+    return "\n".join(lines)
+
+
+async def period_report_job(context: ContextTypes.DEFAULT_TYPE):
+    if db.get_setting("daily_on", "1") != "1":
+        return
+    today = dt.date.today()
+    if today.weekday() == 0:  # понедельник — итоги прошлой недели
+        start = today - dt.timedelta(days=7)
+        end = today - dt.timedelta(days=1)
+        await _notify(context, build_period_report(
+            f"Итоги недели {start:%d.%m}–{end:%d.%m}", start, end))
+    if today.day == 1:  # 1-е число — итоги прошлого месяца
+        last = today - dt.timedelta(days=1)
+        start = last.replace(day=1)
+        await _notify(context, build_period_report(
+            f"Итоги прошлого месяца ({start:%m.%Y})", start, last))
+
+
 def main():
     problems = []
     if "ВСТАВЬТЕ" in BOT_TOKEN:
@@ -581,6 +697,15 @@ def main():
     app.add_handler(CommandHandler("sait", dashboard_cmd))
     app.add_handler(CommandHandler("report", report_cmd))
     app.add_handler(CommandHandler("svodka", report_cmd))
+    app.add_handler(CommandHandler("menu", menu_cmd))
+    app.add_handler(CommandHandler("nastroiki", settings_cmd))
+    app.add_handler(CommandHandler("settings", settings_cmd))
+    app.add_handler(CallbackQueryHandler(on_button))
+
+    try:
+        db.init_db()  # чтобы таблица настроек существовала
+    except Exception as e:
+        log.warning("db init at start: %s", e)
 
     # Расписание (нужен extra job-queue; если нет — просто пропускаем)
     if app.job_queue is not None:
@@ -588,7 +713,8 @@ def main():
         jq.run_daily(daily_report_job, time=_local_time(REPORT_HOUR), name="daily_report")
         jq.run_repeating(sync_job, interval=3600, first=15, name="hourly_sync")
         jq.run_daily(backup_job, time=_local_time(23), name="daily_backup")
-        log.info("Расписание: отчёт %02d:00, синхронизация каждый час, бэкап 23:00 (Душанбе)",
+        jq.run_daily(period_report_job, time=_local_time(9), name="period_reports")
+        log.info("Расписание: отчёт %02d:00, неделя/месяц 09:00, синхр. каждый час, бэкап 23:00",
                  REPORT_HOUR)
     else:
         log.warning("job-queue недоступен — авто-задачи выключены")

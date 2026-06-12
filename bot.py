@@ -41,10 +41,10 @@ POINTS = [
 ]
 
 # Из какого столбца дашборда брать цифры точки.
-# В вашем файле рабочие цифры лежат в столбце C (индекс 2, столбец «9 км»).
-# Если в файле Гульбуты цифры будут в другом столбце — поменяйте здесь.
-VALUE_COL = 2
-HEADER_MARK_COL = 1  # у строк-заголовков разделов в столбце B стоит «Итого»
+# В дашборде столбцы такие: A — метка, B — число точки, C — описание.
+# Поэтому цифры берём из столбца B (индекс 1).
+LABEL_COL = 0
+VALUE_COL = 1
 
 # Кому разрешено пользоваться ботом: список Telegram id (числа).
 # Пустой список [] = разрешено всем. Узнать свой id: команда /myid
@@ -125,17 +125,19 @@ def read_point(point):
     if rows:
         parsed.append(("title", cell(rows[0], 0)))
     for row in rows[1:]:
-        label = cell(row, 0)
+        label = cell(row, LABEL_COL)
         value = cell(row, VALUE_COL)
-        mark = cell(row, HEADER_MARK_COL)
         if not label:
             continue
-        if mark.lower() == "итого":
-            parsed.append(("section", label))
+        num = parse_number(value)
+        if num is None:
+            # Строка-заголовок раздела: в столбце B стоит не число,
+            # а метка точки («9 км»/«гульбута»), в A — название раздела.
+            # Пустой B при заполненном A (подзаголовок) — пропускаем.
+            if value:
+                parsed.append(("section", label))
             continue
-        if not value:
-            continue
-        parsed.append(("item", label, parse_number(value), value))
+        parsed.append(("item", label, num, value))
     return parsed
 
 

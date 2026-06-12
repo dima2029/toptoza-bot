@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ТОП-ТОЗА · {{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители'}[data.section] }}</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00B956">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ТОП-ТОЗА">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+<script>if(localStorage.getItem('theme')==='dark')document.documentElement.dataset.theme='dark';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -43,12 +51,27 @@
         {{ plink('today','Сегодня') }}{{ plink('yesterday','Вчера') }}{{ plink('7d','7 дней') }}{{ plink('month','Месяц') }}{{ plink('all','Всё') }}
         <div class="sep"></div>
         {{ vlink('total','Обе') }}{{ vlink('km9','9 км') }}{{ vlink('gulbuta','Гульбута') }}
+        <div class="sep"></div>
+        <a class="tbtn" href="/export.csv?period={{ data.period }}&view={{ data.view }}" title="Скачать Excel/CSV">⬇ CSV</a>
+        <button class="tbtn" onclick="window.print()" title="Печать / PDF">🖨</button>
+        <button class="tbtn" id="themeBtn" title="Светлая/тёмная тема">🌙</button>
       </div>
     </div>
 
     <div class="content">
     {# ───────────── СВОДКА ───────────── #}
     {% if S == 'summary' %}
+      {% if data.health %}{% set h = data.health %}
+      <div class="card"><div class="card-body"><div class="health">
+        <div class="dot dot-{{ h.light }}"></div>
+        <div><div class="status">{{ h.light_txt }}</div><div class="op-meta">текущий месяц · по факту на сегодня</div></div>
+        <div class="hm">
+          <div><div class="l">Прогноз на месяц</div><div class="v text-green">{{ fmt(h.forecast) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+          {% if h.mom is not none %}<div><div class="l">К прошлому месяцу</div><div class="v {{ 'text-green' if h.mom>=0 else 'text-red' }}">{{ '+' if h.mom>=0 else '' }}{{ h.mom }}%</div></div>{% endif %}
+          {% if h.goal_pct is not none %}<div><div class="l">План {{ fmt(h.goal) }}</div><div class="v text-blue">{{ h.goal_pct }}%</div><div class="bar"><i style="width:{{ [h.goal_pct,100]|min }}%"></i></div></div>{% endif %}
+        </div>
+      </div></div></div>
+      {% endif %}
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">Приход</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
         <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
@@ -81,8 +104,18 @@
         </div></div></div>
       {% endif %}
 
+      <div class="card"><div class="card-header"><div class="card-title">Календарь — приход по дням</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><div class="cal" id="cal"></div></div></div>
+
     {# ───────────── ДЕНЬГИ ───────────── #}
     {% elif S == 'money' %}
+      <div class="search">
+        <form method="get" style="display:flex;gap:8px;flex:1">
+          <input type="hidden" name="section" value="money"><input type="hidden" name="period" value="{{ data.period }}"><input type="hidden" name="view" value="{{ data.view }}">
+          <input name="q" value="{{ data.q }}" placeholder="Поиск по операциям: ЗП, ГСМ, заправка, имя…" autocomplete="off">
+          <button class="tbtn" type="submit">Найти</button>
+          {% if data.q %}<a class="tbtn" href="?section=money&period={{ data.period }}&view={{ data.view }}">Сброс</a>{% endif %}
+        </form>
+      </div>
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">Приход</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
         <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
@@ -197,6 +230,19 @@ if($("cmp")){const cmp=D.compare,mx=Math.max(1,...cmp.flatMap(c=>[c.income,Math.
     <div class="cb-track"><div class="cb-fill" style="width:${Math.max(2,c.income/mx*100)}%;background:#00B956"></div></div></div>
   <div class="cb-row"><div class="cb-label"><span>${c.name} · чистый поток</span><b>${fmt(c.net)}</b></div>
     <div class="cb-track"><div class="cb-fill" style="width:${Math.max(2,Math.abs(c.net)/mx*100)}%;background:${c.net>=0?'#2563EB':'#F0455A'}"></div></div></div>`).join("");}
+
+// тёмная тема
+const tb=$("themeBtn");
+function themeIcon(){tb.textContent=document.documentElement.dataset.theme==='dark'?'☀️':'🌙';}
+if(tb){themeIcon();tb.onclick=()=>{if(document.documentElement.dataset.theme==='dark'){delete document.documentElement.dataset.theme;localStorage.setItem('theme','light');}else{document.documentElement.dataset.theme='dark';localStorage.setItem('theme','dark');}themeIcon();};}
+
+// календарь — приход по дням
+if($("cal")){const days=D.agg.by_day;const mx=Math.max(1,...days.map(d=>d.income));
+  $("cal").innerHTML=days.length?days.map(d=>{const a=d.income/mx,hot=a>0.5;
+    return `<div class="cal-day" title="${d.date}: +${fmt(d.income)}" style="background:${d.income?`rgba(0,185,86,${0.12+a*0.78})`:'transparent'}">
+      <span class="d" style="${hot?'color:rgba(255,255,255,.85)':''}">${d.date}</span>
+      <span class="s" style="${hot?'color:#fff':''}">${d.income?(d.income>=1000?fmt(Math.round(d.income/1000))+'к':fmt(d.income)):'—'}</span></div>`;}).join("")
+    :'<div class="empty">Нет данных за период</div>';}
 </script>
 </body>
 </html>

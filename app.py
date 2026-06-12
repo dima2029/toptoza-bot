@@ -7,12 +7,15 @@
 • графики и сводка по обеим точкам
 """
 import os
+import io
+import csv
 import time
+import calendar as _cal
 import datetime as dt
 from functools import wraps
 
 from flask import (Flask, request, session, redirect, url_for,
-                   render_template, flash)
+                   render_template, flash, Response, send_from_directory)
 
 import sheets
 import db
@@ -20,6 +23,7 @@ import db
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "toptoza-dev-secret-change-me")
 SITE_PASSWORD = os.environ.get("SITE_PASSWORD", "toptoza")
+GOAL_REVENUE = float(os.environ.get("GOAL_REVENUE", "0") or 0)  # цель выручки на месяц
 
 _last_sync = 0
 _SYNC_EVERY = 120  # сек
@@ -124,6 +128,41 @@ def read_monthly(point_keys):
     }
 
 
+def prev_month_range(d):
+    first = d.replace(day=1)
+    pe = first - dt.timedelta(days=1)
+    return pe.replace(day=1), pe
+
+
+def compute_health(point_keys):
+    """Светофор, прогноз на месяц, сравнение с прошлым месяцем, план/факт."""
+    today = dt.date.today()
+    ms = today.replace(day=1)
+    ps, pe = prev_month_range(today)
+    cur = db.query_ops(point_keys, ms, today)
+    prev = db.query_ops(point_keys, ps, pe)
+    cur_inc = sum(o["income"] for o in cur)
+    cur_exp = sum(o["expense"] for o in cur)
+    prev_inc = sum(o["income"] for o in prev)
+    net = cur_inc - cur_exp
+    dim = _cal.monthrange(today.year, today.month)[1]
+    forecast = round(cur_inc / today.day * dim) if today.day else 0
+    mom = round((forecast - prev_inc) / prev_inc * 100) if prev_inc else None
+    goal_pct = round(forecast / GOAL_REVENUE * 100) if GOAL_REVENUE else None
+    if net >= 0 and (mom is None or mom >= 0):
+        light, light_txt = "green", "Всё хорошо"
+    elif net >= 0:
+        light, light_txt = "gold", "Внимание — рост замедлился"
+    else:
+        light, light_txt = "red", "Расходы выше прихода"
+    return {
+        "light": light, "light_txt": light_txt,
+        "month_income": round(cur_inc), "month_net": round(net),
+        "forecast": forecast, "prev_income": round(prev_inc),
+        "mom": mom, "goal": round(GOAL_REVENUE), "goal_pct": goal_pct,
+    }
+
+
 POINT_NAME = {"km9": "9 км", "gulbuta": "Гульбута"}
 
 
@@ -154,7 +193,13 @@ def dashboard():
     point_keys = ["km9", "gulbuta"] if view == "total" else [view]
     start, end, plabel = period_bounds(period)
     ops = db.query_ops(point_keys, start, end)
+    q = (request.args.get("q") or "").strip()
+    if q:
+        ql = q.lower()
+        ops = [o for o in ops
+               if ql in (o["article"] or "").lower() or ql in (o["desc"] or "").lower()]
     agg = aggregate(ops)
+    health = compute_health(point_keys) if section == "summary" else None
 
     # последние операции
     recent = [{
@@ -184,12 +229,44 @@ def dashboard():
     data = {
         "agg": agg, "recent": recent, "compare": compare,
         "monthly": monthly, "monthly_by_point": monthly_by_point,
+        "health": health, "q": q,
         "period": period, "view": view, "section": section, "plabel": plabel,
         "range": (f"{dmin.strftime('%d.%m.%Y')} — {dmax.strftime('%d.%m.%Y')}"
                   if dmin and dmax else "нет данных"),
     }
     return render_template("dashboard.html", data=data, fmt=fmt,
                            POINT_NAME=POINT_NAME)
+
+
+@app.route("/export.csv")
+@login_required
+def export_csv():
+    period = request.args.get("period", "all")
+    view = request.args.get("view", "total")
+    ensure_synced()
+    point_keys = ["km9", "gulbuta"] if view == "total" else [view]
+    start, end, _ = period_bounds(period)
+    ops = db.query_ops(point_keys, start, end)
+    buf = io.StringIO()
+    buf.write("﻿")  # BOM, чтобы Excel понял кириллицу
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Дата", "Точка", "Раздел", "Статья", "Описание", "Приход", "Расход"])
+    for o in ops:
+        w.writerow([
+            o["date"].strftime("%d.%m.%Y") if o["date"] else "",
+            POINT_NAME.get(o["point"], o["point"]),
+            o["section"], o["article"], o["desc"],
+            round(o["income"]) if o["income"] else "",
+            round(o["expense"]) if o["expense"] else "",
+        ])
+    fn = f"toptoza_{view}_{period}.csv"
+    return Response(buf.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f"attachment; filename={fn}"})
+
+
+@app.route("/manifest.json")
+def manifest():
+    return send_from_directory("static", "manifest.json", mimetype="application/manifest+json")
 
 
 if __name__ == "__main__":

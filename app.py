@@ -269,6 +269,11 @@ def manifest():
     return send_from_directory("static", "manifest.json", mimetype="application/manifest+json")
 
 
+@app.route("/healthz")
+def healthz():
+    return "ok", 200
+
+
 if __name__ == "__main__":
     db.init_db()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)

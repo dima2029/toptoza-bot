@@ -72,6 +72,12 @@
         </div>
       </div></div></div>
       {% endif %}
+      {% if data.insights and data.insights.narrative %}
+      <div class="card"><div class="card-header"><div class="card-title">📝 Выводы</div><span class="badge badge-green">{{ data.plabel }}</span></div>
+        <div class="card-body"><div class="insights-list">
+        {% for line in data.insights.narrative %}<div class="ins-row"><span class="ins-ic">✓</span><span>{{ line }}</span></div>{% endfor %}
+        </div></div></div>
+      {% endif %}
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">Приход</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
         <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
@@ -92,6 +98,26 @@
         </div>
         <div class="card"><div class="card-header"><div class="card-title">Сравнение точек</div></div><div class="card-body"><div class="company-bars" id="cmp"></div></div></div>
       </div>
+      {% if data.insights %}{% set ins = data.insights %}
+      <div class="card"><div class="card-body"><div class="health">
+        <div class="hm" style="margin-left:0">
+          {% if ins.best %}<div><div class="l">Лучший день</div><div class="v text-green">{{ ins.best.date.strftime('%d.%m') }} · {{ fmt(ins.best.income) }}</div></div>{% endif %}
+          {% if ins.worst %}<div><div class="l">Слабый день</div><div class="v text-red">{{ ins.worst.date.strftime('%d.%m') }} · {{ fmt(ins.worst.income) }}</div></div>{% endif %}
+          <div><div class="l">Безубыточность / день</div><div class="v text-blue">{{ fmt(ins.breakeven) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        </div>
+      </div></div></div>
+      <div class="charts-grid">
+        <div class="card"><div class="card-header"><div class="card-title">Выручка по дням недели</div></div><div class="card-body"><canvas id="cWd" height="180"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">ABC — на что уходят деньги</div><span class="badge badge-gold">80% расходов</span></div>
+          <div class="card-body">
+          {% if ins.abc %}{% for a in ins.abc %}
+            <div class="cb-row" style="margin-bottom:10px"><div class="cb-label"><span>{{ a.article }}</span><b>{{ fmt(a.sum) }} · {{ a.share|round|int }}%</b></div>
+              <div class="cb-track"><div class="cb-fill" style="width:{{ a.share }}%;background:#F0455A"></div></div></div>
+          {% endfor %}{% else %}<div class="empty">Нет расходов за период</div>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
       {% if data.monthly %}
       <div class="card"><div class="card-header"><div class="card-title">Месячный итог</div><span class="badge badge-green">из листа «Дашборд»</span></div>
         <div class="card-body"><div class="mini-grid">
@@ -243,6 +269,11 @@ if($("cal")){const days=D.agg.by_day;const mx=Math.max(1,...days.map(d=>d.income
       <span class="d" style="${hot?'color:rgba(255,255,255,.85)':''}">${d.date}</span>
       <span class="s" style="${hot?'color:#fff':''}">${d.income?(d.income>=1000?fmt(Math.round(d.income/1000))+'к':fmt(d.income)):'—'}</span></div>`;}).join("")
     :'<div class="empty">Нет данных за период</div>';}
+
+// выручка по дням недели
+if($("cWd") && D.insights){const w=D.insights.weekday;
+  new Chart(cWd,{type:"bar",data:{labels:w.map(x=>x.wd),datasets:[{label:"Средний приход",data:w.map(x=>Math.round(x.avg)),backgroundColor:"#00B956",borderRadius:6,maxBarThickness:30}]},
+    options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:"#EDEFF3"}}}}});}
 </script>
 </body>
 </html>

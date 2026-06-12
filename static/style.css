@@ -131,6 +131,11 @@ a{color:inherit;text-decoration:none}
 [data-theme="dark"] .mini,[data-theme="dark"] .cal-day{border-color:var(--border)}
 [data-theme="dark"] .tbtn,[data-theme="dark"] .search input{background:var(--white)}
 
+/* список выводов */
+.insights-list{display:flex;flex-direction:column;gap:10px}
+.ins-row{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.45}
+.ins-ic{width:20px;height:20px;border-radius:6px;background:rgba(0,185,86,.12);color:var(--em);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px}
+
 /* печать в PDF */
 @media print{
   .sidebar,.topbar .filters,.tbtn,.search{display:none !important}

@@ -19,6 +19,7 @@ from flask import (Flask, request, session, redirect, url_for,
 
 import sheets
 import db
+import insights
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "toptoza-dev-secret-change-me")
@@ -201,6 +202,15 @@ def dashboard():
     agg = aggregate(ops)
     health = compute_health(point_keys) if section == "summary" else None
 
+    insights_data = None
+    if section == "summary":
+        prev_ops = None
+        if period == "month":
+            ps, pe = prev_month_range(dt.date.today())
+            prev_ops = db.query_ops(point_keys, ps, pe)
+        insights_data = insights.analytics(ops)
+        insights_data["narrative"] = insights.narrative(ops, prev_ops)
+
     # последние операции
     recent = [{
         "in": bool(o["income"]),
@@ -229,7 +239,7 @@ def dashboard():
     data = {
         "agg": agg, "recent": recent, "compare": compare,
         "monthly": monthly, "monthly_by_point": monthly_by_point,
-        "health": health, "q": q,
+        "health": health, "insights": insights_data, "q": q,
         "period": period, "view": view, "section": section, "plabel": plabel,
         "range": (f"{dmin.strftime('%d.%m.%Y')} — {dmax.strftime('%d.%m.%Y')}"
                   if dmin and dmax else "нет данных"),

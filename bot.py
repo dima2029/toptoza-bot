@@ -29,8 +29,9 @@ import gspread
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-import sheets  # общий модуль чтения журнала/дашборда (используется и сайтом)
-import db      # хранилище (Postgres) — для авто-синхронизации и бэкапа
+import sheets    # общий модуль чтения журнала/дашборда (используется и сайтом)
+import db        # хранилище (Postgres) — для авто-синхронизации и бэкапа
+import insights  # текстовые выводы (общие с сайтом)
 
 # Ссылка на веб-панель и время авто-отчёта
 SITE_URL = os.environ.get("SITE_URL", "https://toptoza.up.railway.app")
@@ -350,9 +351,21 @@ def build_daily_report():
         f"• Чистая прибыль: {f(mon['Чистая прибыль'])} сом.",
         f"• Долг клиентов: {f(mon['Сумма долга'])} сом.",
         f"• Заказов: {f(mon['Всего заказов'])} (в работе {f(mon['В работе'])})",
-        "",
-        f"🔗 Подробнее на сайте: {SITE_URL}",
     ]
+    # выводы словами (по данным из базы за текущий месяц vs прошлый)
+    try:
+        ms = today.replace(day=1)
+        cur = db.query_ops(["km9", "gulbuta"], ms, today)
+        ps = (ms - dt.timedelta(days=1)).replace(day=1)
+        pe = ms - dt.timedelta(days=1)
+        ins = insights.narrative(cur, db.query_ops(["km9", "gulbuta"], ps, pe))
+        if ins:
+            lines.append("")
+            lines.append("*Выводы:*")
+            lines += ["• " + line for line in ins[:4]]
+    except Exception as e:
+        log.warning("narrative: %s", e)
+    lines += ["", f"🔗 Подробнее: {SITE_URL}"]
     if notes:
         lines.append("\n⚠️ " + "; ".join(notes))
     return "\n".join(lines)

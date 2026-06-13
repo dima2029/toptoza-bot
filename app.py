@@ -32,6 +32,7 @@ _SYNC_EVERY = 120  # сек
 ZERO_MONTHLY = {"Выручка": 0, "Всего заказов": 0, "Выдано": 0,
                 "В работе": 0, "Сумма долга": 0, "Чистая прибыль": 0}
 _monthly_cache = {"km9": dict(ZERO_MONTHLY), "gulbuta": dict(ZERO_MONTHLY)}
+_orders_cache = {"km9": [], "gulbuta": []}
 
 
 def ensure_synced(force=False):
@@ -44,8 +45,9 @@ def ensure_synced(force=False):
         db.init_db()
         for p in sheets.POINTS:
             db.sync_point(p["key"], sheets.read_journal(p))
-        for k in ["km9", "gulbuta"]:
-            _monthly_cache[k] = read_monthly([k])
+        for p in sheets.POINTS:
+            _monthly_cache[p["key"]] = read_monthly([p["key"]])
+            _orders_cache[p["key"]] = sheets.read_orders(p)
         _last_sync = time.time()
     except Exception as e:
         app.logger.warning("sync failed (оставляю прошлые данные): %s", e)
@@ -278,6 +280,40 @@ def dashboard():
         compare.append({"name": POINT_NAME[k], "income": round(inc),
                         "expense": round(exp), "net": round(inc - exp)})
 
+    orders_data = None
+    if section in ("orders", "debts"):
+        allo = []
+        for k in point_keys:
+            for o in _orders_cache.get(k, []):
+                allo.append(dict(o, point=k))
+        rab = [o for o in allo if not o["issued"]]
+        vyd = [o for o in allo if o["issued"]]
+        byc = {}
+        for o in rab:
+            key = o["name"] or o["client"] or "—"
+            g = byc.setdefault(key, {"name": key, "phone": o["phone"], "sum": 0, "cnt": 0})
+            g["sum"] += o["total"]
+            g["cnt"] += 1
+        debtors = sorted(byc.values(), key=lambda x: -x["sum"])
+
+        def _onum(o):
+            s = "".join(ch for ch in str(o["num"]) if ch.isdigit())
+            return int(s) if s else 0
+        order_list = sorted(allo, key=_onum, reverse=True)  # свежие (больший №) сверху
+        orders_data = {
+            "total": len(allo), "issued": len(vyd), "work": len(rab),
+            "revenue": round(sum(o["total"] for o in allo)),
+            "area": round(sum(o["area"] for o in allo), 1),
+            "debt": round(sum(o["total"] for o in rab)),
+            "orders": [{
+                "num": o["num"], "date": o["date_received"], "name": o["name"],
+                "phone": o["phone"], "area": o["area"], "total": round(o["total"]),
+                "issued": o["issued"], "point": POINT_NAME.get(o["point"], ""),
+            } for o in order_list[:250]],
+            "debtors": [{"name": d["name"], "phone": d["phone"],
+                         "sum": round(d["sum"]), "cnt": d["cnt"]} for d in debtors[:60]],
+        }
+
     # месячный итог — из кэша (обновляется в ensure_synced раз в 2 мин)
     monthly_by_point = {k: _monthly_cache.get(k, dict(ZERO_MONTHLY))
                         for k in ["km9", "gulbuta"]}
@@ -290,7 +326,7 @@ def dashboard():
         "agg": agg, "recent": recent, "compare": compare,
         "monthly": monthly, "monthly_by_point": monthly_by_point,
         "health": health, "insights": insights_data,
-        "comparison": comparison, "q": q,
+        "comparison": comparison, "orders_data": orders_data, "q": q,
         "period": period, "view": view, "section": section, "plabel": plabel,
         "range": (f"{dmin.strftime('%d.%m.%Y')} — {dmax.strftime('%d.%m.%Y')}"
                   if dmin and dmax else "нет данных"),

@@ -135,6 +135,43 @@ def read_dashboard(point):
     return out
 
 
+def read_orders(point):
+    """Журнал заказов из листа «процесс работы».
+    Колонки: A №, B дата приёма, C клиент(тел+имя), D ковёр шт, E м², F сумма,
+    G одеяло, H, I шторы, J, K курпача, L, M ИТОГО, N дата выдачи, O подпись.
+    Заказ «в работе», если дата выдачи (N) пустая; иначе «выдан».
+    """
+    sh = _open(point)
+    ws = None
+    for w in sh.worksheets():
+        if "работ" in w.title.lower():
+            ws = w
+            break
+    if ws is None:
+        return []
+    rows = ws.get_all_values()
+    out = []
+    for r in rows[5:]:  # шапка занимает первые строки
+        def c(i):
+            return (r[i].strip() if len(r) > i and r[i] is not None else "")
+        client = c(2)
+        total = parse_number(c(12)) or 0.0
+        area = parse_number(c(4)) or 0.0
+        if total == 0 and area == 0:        # пустые/служебные строки
+            continue
+        date_iss = c(13)
+        parts = client.split(" ", 1)
+        phone = parts[0] if parts and parts[0].replace("+", "").isdigit() else ""
+        name = (parts[1] if phone and len(parts) > 1 else client).strip()
+        out.append({
+            "num": c(0), "date_received": c(1), "client": client,
+            "phone": phone, "name": name or "—",
+            "carpets": parse_number(c(3)) or 0.0, "area": area,
+            "total": total, "issued": bool(date_iss), "date_issued": date_iss,
+        })
+    return out
+
+
 def read_journal(point):
     """Дневной журнал. Возвращает список операций:
     {date(date|None), section, article, desc, income(float), expense(float)}."""

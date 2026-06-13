@@ -165,34 +165,45 @@
 
     {# ───────────── ЗАКАЗЫ ───────────── #}
     {% elif S == 'orders' %}
+      {% set od = data.orders_data %}
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Всего заказов</div><div class="kpi-value">{{ fmt(data.monthly['Всего заказов']) }}</div><div class="kpi-sub">за месяц</div></div>
-        <div class="kpi-card"><div class="kpi-label">Выдано</div><div class="kpi-value text-green">{{ fmt(data.monthly['Выдано']) }}</div><div class="kpi-sub">готово и забрали</div></div>
-        <div class="kpi-card"><div class="kpi-label">В работе</div><div class="kpi-value text-gold">{{ fmt(data.monthly['В работе']) }}</div><div class="kpi-sub">ещё не выданы</div></div>
-        <div class="kpi-card"><div class="kpi-label">Выручка</div><div class="kpi-value text-green">{{ fmt(data.monthly['Выручка']) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Всего заказов') }}</div><div class="kpi-value">{{ fmt(od.total) }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Выдано') }}</div><div class="kpi-value text-green">{{ fmt(od.issued) }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('В работе') }}</div><div class="kpi-value text-gold">{{ fmt(od.work) }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Площадь · выручка</div><div class="kpi-value">{{ fmt(od.area) }} <span class="kpi-cur">м²</span></div><div class="kpi-sub text-green">{{ fmt(od.revenue) }} сом.</div></div>
       </div>
-      <div class="card"><div class="card-header"><div class="card-title">Заказы по точкам</div><span class="badge badge-green">за месяц</span></div>
+      <div class="card"><div class="card-header"><div class="card-title">Заказы</div><span class="badge badge-gold">в работе — сверху</span></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Точка</th><th>Всего</th><th>Выдано</th><th>В работе</th><th>Выручка</th></tr></thead>
+          <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th class="hide-mobile">Телефон</th><th>м²</th><th>Сумма</th><th>Статус</th></tr></thead>
           <tbody>
-          {% for k,n in POINT_NAME.items() %}{% set m = data.monthly_by_point[k] %}
-            <tr><td><b>{{ n }}</b></td><td>{{ fmt(m['Всего заказов']) }}</td><td>{{ fmt(m['Выдано']) }}</td><td>{{ fmt(m['В работе']) }}</td><td>{{ fmt(m['Выручка']) }}</td></tr>
+          {% for o in od.orders %}
+            <tr><td>{{ o.num }}</td><td>{{ o.date }}</td><td><b>{{ o.name }}</b></td><td class="hide-mobile">{{ o.phone }}</td>
+              <td>{{ o.area }}</td><td><b>{{ fmt(o.total) }}</b></td>
+              <td>{% if o.issued %}<span class="badge badge-green">выдан</span>{% else %}<span class="badge badge-gold">в работе</span>{% endif %}</td></tr>
           {% endfor %}
           </tbody>
         </table></div>
       </div>
-      <div class="card"><div class="card-body"><div class="empty">Детали по каждому ковру (клиент, площадь м², статус, срок) появятся, когда заведём отдельный лист «Заказы» в нужном формате.</div></div></div>
 
     {# ───────────── ДОЛГИ ───────────── #}
     {% elif S == 'debts' %}
+      {% set od = data.orders_data %}
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Долг — всего</div><div class="kpi-value text-red">{{ fmt(data.monthly['Сумма долга']) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        {% for k,n in POINT_NAME.items() %}{% set m = data.monthly_by_point[k] %}
-        <div class="kpi-card"><div class="kpi-label">Долг · {{ n }}</div><div class="kpi-value text-red">{{ fmt(m['Сумма долга']) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        {% endfor %}
-        <div class="kpi-card"><div class="kpi-label">В работе (заказы)</div><div class="kpi-value text-gold">{{ fmt(data.monthly['В работе']) }}</div><div class="kpi-sub">сумма заказов в работе</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Долг клиентов') }}</div><div class="kpi-value text-red">{{ fmt(od.debt) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">сумма заказов в работе</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('В работе') }}</div><div class="kpi-value text-gold">{{ fmt(od.work) }}</div><div class="kpi-sub">заказов не выдано</div></div>
+        <div class="kpi-card"><div class="kpi-label">Должников</div><div class="kpi-value">{{ od.debtors|length }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Средний долг</div><div class="kpi-value">{{ fmt(od.debt / (od.debtors|length or 1)) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
       </div>
-      <div class="card"><div class="card-body"><div class="empty">Список «кто и сколько должен» по клиентам появится, когда добавим лист с долгами клиентов (имя, сумма, дата).<br>Сейчас показана общая сумма долга из листа «Дашборд».</div></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">Кто сколько должен</div><span class="badge badge-red">в работе</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Клиент</th><th class="hide-mobile">Телефон</th><th>Заказов</th><th>Долг</th></tr></thead>
+          <tbody>
+          {% for d in od.debtors %}
+            <tr><td><b>{{ d.name }}</b></td><td class="hide-mobile">{{ d.phone }}</td><td>{{ d.cnt }}</td><td><b class="text-red">{{ fmt(d.sum) }}</b></td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+      </div>
 
     {# ───────────── ТОЧКИ ───────────── #}
     {% elif S == 'points' %}

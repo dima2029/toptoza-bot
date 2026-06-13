@@ -54,16 +54,18 @@ _MONTHS = {
 
 
 def parse_date(text, default_year=None):
-    """Понимает форматы: '12.06.2026', '12.06.26', '9-мая', '1 июн.'.
-    Возвращает datetime.date или None."""
-    if not text:
+    """Понимает форматы: '12.06.2026', '12.06.26', '12.06', '12/6', '9-мая',
+    '1 июн.', '9 май 2026'. Возвращает datetime.date или None."""
+    if text is None:
         return None
     s = str(text).strip().lower().replace("ё", "е")
+    if not s:
+        return None
     year = default_year or dt.date.today().year
-    # 12.06.2026 / 12.06.26 / 12/06/2026
-    for sep in (".", "/", "-"):
-        parts = s.split(sep)
-        if len(parts) == 3 and all(p.strip().isdigit() for p in parts):
+    # 12.06.2026 / 12.06.26 / 12/06/2026 / 12,06,2026
+    for sep in (".", "/", "-", ","):
+        parts = [p.strip() for p in s.split(sep)]
+        if len(parts) == 3 and all(p.isdigit() for p in parts):
             d, m, y = (int(p) for p in parts)
             if y < 100:
                 y += 2000
@@ -71,14 +73,26 @@ def parse_date(text, default_year=None):
                 return dt.date(y, m, d)
             except ValueError:
                 return None
-    # «9-мая», «1 июн.», «29мая»
-    s2 = s.replace("-", " ").replace(".", " ")
+        # 12.06 / 12/6 — без года, берём текущий
+        if len(parts) == 2 and all(p.isdigit() for p in parts):
+            d, m = int(parts[0]), int(parts[1])
+            try:
+                return dt.date(year, m, d)
+            except ValueError:
+                return None
+    # «9-мая», «1 июн.», «29мая», «9 май 2026»
+    s2 = s.replace("-", " ").replace(".", " ").replace(",", " ")
     tokens = [t for t in s2.split() if t]
     day = None
     month = None
+    ynum = None
     for t in tokens:
         if t.isdigit():
-            day = int(t)
+            n = int(t)
+            if n > 1900:
+                ynum = n
+            elif day is None:
+                day = n
         else:
             for pref, mnum in _MONTHS.items():
                 if t.startswith(pref):
@@ -86,7 +100,7 @@ def parse_date(text, default_year=None):
                     break
     if day and month:
         try:
-            return dt.date(year, month, day)
+            return dt.date(ynum or year, month, day)
         except ValueError:
             return None
     return None

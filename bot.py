@@ -27,6 +27,7 @@ import datetime as dt
 
 import gspread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import Conflict
 from telegram.ext import (Application, CommandHandler, CallbackQueryHandler,
                           ContextTypes)
 
@@ -561,6 +562,15 @@ async def backup_job(context: ContextTypes.DEFAULT_TYPE):
             log.warning("backup send %s: %s", uid, e)
 
 
+async def on_error(update, context: ContextTypes.DEFAULT_TYPE):
+    """Тихо гасим Conflict (бывает при перезапуске), остальное логируем как ошибку."""
+    err = context.error
+    if isinstance(err, Conflict):
+        log.warning("Conflict при опросе (обычно во время перезапуска, проходит сам)")
+        return
+    log.error("Необработанная ошибка: %s", err, exc_info=err)
+
+
 # ───────────────────── кнопки, меню, настройки ─────────────────────
 def main_keyboard():
     return InlineKeyboardMarkup([
@@ -701,6 +711,7 @@ def main():
     app.add_handler(CommandHandler("nastroiki", settings_cmd))
     app.add_handler(CommandHandler("settings", settings_cmd))
     app.add_handler(CallbackQueryHandler(on_button))
+    app.add_error_handler(on_error)
 
     try:
         db.init_db()  # чтобы таблица настроек существовала

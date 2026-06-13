@@ -184,11 +184,12 @@
       </div>
       <div class="card"><div class="card-header"><div class="card-title">Заказы</div><span class="badge badge-gold">свежие — сверху</span></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>№</th><th>Дата</th>{% if data.view=='total' %}<th>Точка</th>{% endif %}<th>Клиент</th><th class="hide-mobile">Телефон</th><th>м²</th><th>Сумма</th><th>Статус</th></tr></thead>
+          <thead><tr><th>№</th><th>Дата</th>{% if data.view=='total' %}<th>Точка</th>{% endif %}<th>Клиент</th><th class="hide-mobile">Телефон</th><th>Ковёр<br>м²</th><th>Одеяло<br>шт</th><th>Шторы<br>кг</th><th>Курпача<br>шт</th><th>Итого</th><th>Статус</th></tr></thead>
           <tbody>
           {% for o in od.orders %}
             <tr><td>{{ o.num }}</td><td>{{ o.date }}</td>{% if data.view=='total' %}<td>{{ o.point }}</td>{% endif %}<td><b>{{ o.name }}</b></td><td class="hide-mobile">{{ o.phone }}</td>
-              <td>{{ o.area }}</td><td><b>{{ fmt(o.total) }}</b></td>
+              <td>{{ o.area or '·' }}</td><td>{{ o.blanket|int or '·' }}</td><td>{{ o.curtain or '·' }}</td><td>{{ o.quilt|int or '·' }}</td>
+              <td><b>{{ fmt(o.total) }}</b></td>
               <td>{% if o.issued %}<span class="badge badge-green">выдан</span>{% else %}<span class="badge badge-gold">в работе</span>{% endif %}</td></tr>
           {% endfor %}
           </tbody>

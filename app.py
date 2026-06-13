@@ -331,6 +331,8 @@ def dashboard():
             "orders": [{
                 "num": o["num"], "date": o["date_received"], "name": o["name"],
                 "phone": o["phone"], "area": o["area"], "total": round(o["total"]),
+                "carpet_cnt": o["carpet_cnt"], "blanket": o["blanket_cnt"],
+                "curtain": o["curtain_kg"], "quilt": o["quilt_cnt"],
                 "issued": o["issued"], "point": POINT_NAME.get(o["point"], ""),
             } for o in order_list[:250]],
             "debtors": [{"name": d["name"], "phone": d["phone"],

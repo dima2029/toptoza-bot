@@ -26,9 +26,8 @@
 <div class="app">
   <div class="nav-overlay" onclick="document.body.classList.remove('nav-open')"></div>
   <aside class="sidebar">
-    <div class="sidebar-logo" style="flex-direction:column;align-items:flex-start;gap:6px">
-      <img src="{{ url_for('static', filename='logo.png') }}" alt="ТОП-ТОЗА" style="max-width:175px;width:100%;height:auto">
-      <div class="brand-sub">{{ t('Отчёты директора') }}</div>
+    <div class="sidebar-logo">
+      <div><div class="brand">ТОП-ТОЗА</div><div class="brand-sub">{{ t('Отчёты директора') }}</div></div>
     </div>
     <div class="nav-section">{{ t('Обзор') }}</div>
     {{ nlink('summary','📊','Сводка') }}

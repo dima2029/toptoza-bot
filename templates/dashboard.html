@@ -65,6 +65,11 @@
     </div>
 
     <div class="content">
+      <div class="print-only print-header">
+        <b>ТОП-ТОЗА</b> — {{ t({'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[S]) }}
+        · {{ t(data.plabel) }} · {{ t({'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view]) }}
+        <div>{{ t('Отчёт сформирован') }}: {{ today_str }}</div>
+      </div>
     {# ───────────── СВОДКА ───────────── #}
     {% if S == 'summary' %}
       {% if data.health %}{% set h = data.health %}

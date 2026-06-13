@@ -56,7 +56,8 @@ def ensure_synced(force=False):
 @app.context_processor
 def inject_i18n():
     lang = request.cookies.get("lang", "ru")
-    return {"lang": lang, "t": (lambda s: i18n.t(s, lang))}
+    return {"lang": lang, "t": (lambda s: i18n.t(s, lang)),
+            "today_str": dt.date.today().strftime("%d.%m.%Y")}
 
 
 @app.route("/lang/<code>")

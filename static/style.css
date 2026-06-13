@@ -138,12 +138,16 @@ a{color:inherit;text-decoration:none}
 .ins-ic{width:20px;height:20px;border-radius:6px;background:rgba(0,185,86,.12);color:var(--em);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px}
 
 /* печать в PDF */
+.print-only{display:none}
+.print-header b{font-size:18px}.print-header div{font-size:11px;color:#666;margin-top:3px}
 @media print{
-  .sidebar,.topbar .filters,.tbtn,.search{display:none !important}
+  .sidebar,.topbar,.tbtn,.search,.burger,.nav-overlay{display:none !important}
   .main{margin-left:0 !important}
-  .topbar{position:static;border:none}
+  .print-only{display:block;margin-bottom:14px}
   .card,.kpi-card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}
+  .content{padding:0}
   body{background:#fff}
+  a[href]:after{content:""}
 }
 
 /* бургер-меню (только на телефоне) */

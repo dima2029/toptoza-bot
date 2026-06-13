@@ -285,6 +285,10 @@ def dashboard():
         allo = []
         for k in point_keys:
             for o in _orders_cache.get(k, []):
+                if start:  # фильтр по дате приёма (для периода кроме «Всё»)
+                    d = o.get("date")
+                    if d is None or d < start or d > end:
+                        continue
                 allo.append(dict(o, point=k))
         rab = [o for o in allo if not o["issued"]]
         vyd = [o for o in allo if o["issued"]]

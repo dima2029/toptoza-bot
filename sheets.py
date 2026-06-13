@@ -62,24 +62,37 @@ def parse_date(text, default_year=None):
     if not s:
         return None
     year = default_year or dt.date.today().year
-    # 12.06.2026 / 12.06.26 / 12/06/2026 / 12,06,2026
+    # ведущие цифры из части: "05МО" -> 5, "29" -> 29, "мая" -> None
+    def _lead(p):
+        ds = ""
+        for ch in p.strip():
+            if ch.isdigit():
+                ds += ch
+            else:
+                break
+        return int(ds) if ds else None
+
+    # 12.06.2026 / 12.06 / 12/6 / 12,06 / 29.05МО / 06,06АМ
     for sep in (".", "/", "-", ","):
-        parts = [p.strip() for p in s.split(sep)]
-        if len(parts) == 3 and all(p.isdigit() for p in parts):
-            d, m, y = (int(p) for p in parts)
-            if y < 100:
-                y += 2000
-            try:
-                return dt.date(y, m, d)
-            except ValueError:
-                return None
-        # 12.06 / 12/6 — без года, берём текущий
-        if len(parts) == 2 and all(p.isdigit() for p in parts):
-            d, m = int(parts[0]), int(parts[1])
-            try:
-                return dt.date(year, m, d)
-            except ValueError:
-                return None
+        parts = s.split(sep)
+        if len(parts) == 3:
+            nums = [_lead(p) for p in parts]
+            if all(n is not None for n in nums):
+                d, m, y = nums
+                if y < 100:
+                    y += 2000
+                try:
+                    return dt.date(y, m, d)
+                except ValueError:
+                    return None
+        if len(parts) == 2:
+            nums = [_lead(p) for p in parts]
+            if all(n is not None for n in nums):
+                d, m = nums
+                try:
+                    return dt.date(year, m, d)
+                except ValueError:
+                    return None
     # «9-мая», «1 июн.», «29мая», «9 май 2026»
     s2 = s.replace("-", " ").replace(".", " ").replace(",", " ")
     tokens = [t for t in s2.split() if t]
@@ -164,8 +177,8 @@ def read_orders(point):
         phone = parts[0] if parts and parts[0].replace("+", "").isdigit() else ""
         name = (parts[1] if phone and len(parts) > 1 else client).strip()
         out.append({
-            "num": c(0), "date_received": c(1), "client": client,
-            "phone": phone, "name": name or "—",
+            "num": c(0), "date_received": c(1), "date": parse_date(c(1)),
+            "client": client, "phone": phone, "name": name or "—",
             "carpets": parse_number(c(3)) or 0.0, "area": area,
             "total": total, "issued": bool(date_iss), "date_issued": date_iss,
             # услуги отдельно: ковёр(D/E/F) одеяло(G/H) шторы(I/J) курпача(K/L)

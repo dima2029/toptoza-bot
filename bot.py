@@ -360,13 +360,20 @@ def build_daily_report():
         cur = db.query_ops(["km9", "gulbuta"], ms, today)
         ps = (ms - dt.timedelta(days=1)).replace(day=1)
         pe = ms - dt.timedelta(days=1)
-        ins = insights.narrative(cur, db.query_ops(["km9", "gulbuta"], ps, pe))
+        stored = db.get_setting("last_debt")
+        debt_prev = float(stored) if stored is not None else None
+        ins = insights.narrative(cur, db.query_ops(["km9", "gulbuta"], ps, pe),
+                                 debt_now=mon["Сумма долга"], debt_prev=debt_prev)
         if ins:
             lines.append("")
             lines.append("*Выводы:*")
-            lines += ["• " + line for line in ins[:4]]
+            lines += ["• " + line for line in ins[:5]]
     except Exception as e:
         log.warning("narrative: %s", e)
+    try:
+        db.set_setting("last_debt", str(mon["Сумма долга"]))
+    except Exception as e:
+        log.warning("save last_debt: %s", e)
     lines += ["", f"🔗 Подробнее: {SITE_URL}"]
     if notes:
         lines.append("\n⚠️ " + "; ".join(notes))

@@ -215,6 +215,18 @@
           </tbody>
         </table></div>
       </div>
+      <div class="card"><div class="card-header"><div class="card-title">Заказы в работе — детально</div><span class="badge badge-gold">не выдано</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>№</th><th>Дата</th>{% if data.view=='total' %}<th>Точка</th>{% endif %}<th>Клиент</th><th class="hide-mobile">Телефон</th><th>Ковёр<br>м²</th><th>Одеяло<br>шт</th><th>Шторы<br>кг</th><th>Курпача<br>шт</th><th>Долг</th></tr></thead>
+          <tbody>
+          {% for o in od.debt_orders %}
+            <tr><td>{{ o.num }}</td><td>{{ o.date }}</td>{% if data.view=='total' %}<td>{{ o.point }}</td>{% endif %}<td><b>{{ o.name }}</b></td><td class="hide-mobile">{{ o.phone }}</td>
+              <td>{{ o.area or '·' }}</td><td>{{ o.blanket|int or '·' }}</td><td>{{ o.curtain or '·' }}</td><td>{{ o.quilt|int or '·' }}</td>
+              <td><b class="text-red">{{ fmt(o.total) }}</b></td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+      </div>
 
     {# ───────────── ТОЧКИ ───────────── #}
     {% elif S == 'points' %}

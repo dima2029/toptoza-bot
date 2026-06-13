@@ -339,6 +339,12 @@ def dashboard():
                 "curtain": o["curtain_kg"], "quilt": o["quilt_cnt"],
                 "issued": o["issued"], "point": POINT_NAME.get(o["point"], ""),
             } for o in order_list[:250]],
+            "debt_orders": [{
+                "num": o["num"], "date": o["date_received"], "name": o["name"],
+                "phone": o["phone"], "area": o["area"], "blanket": o["blanket_cnt"],
+                "curtain": o["curtain_kg"], "quilt": o["quilt_cnt"],
+                "total": round(o["total"]), "point": POINT_NAME.get(o["point"], ""),
+            } for o in order_list if not o["issued"]][:250],
             "debtors": [{"name": d["name"], "phone": d["phone"],
                          "sum": round(d["sum"]), "cnt": d["cnt"]} for d in debtors[:60]],
         }

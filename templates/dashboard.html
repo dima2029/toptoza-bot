@@ -24,6 +24,7 @@
 {% macro vlink(view, label) %}<a class="pill {{ 'active' if data.view==view else '' }}" href="?section={{ S }}&period={{ data.period }}&view={{ view }}">{{ t(label) }}</a>{% endmacro %}
 {% macro nlink(sec, icon, label) %}<a class="nav-item {{ 'active' if S==sec else '' }}" href="?section={{ sec }}&period={{ data.period }}&view={{ data.view }}">{{ icon }} {{ t(label) }}</a>{% endmacro %}
 <div class="app">
+  <div class="nav-overlay" onclick="document.body.classList.remove('nav-open')"></div>
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark">Т</div>
@@ -47,7 +48,10 @@
 
   <main class="main">
     <div class="topbar">
-      <div class="topbar-title">{{ t({'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[S]) }}<small>{{ t(data.plabel) }} · {{ t({'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view]) }}</small></div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <button class="burger" onclick="document.body.classList.toggle('nav-open')" title="Меню">☰</button>
+        <div class="topbar-title">{{ t({'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[S]) }}<small>{{ t(data.plabel) }} · {{ t({'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view]) }}</small></div>
+      </div>
       <div class="filters">
         {{ plink('today','Сегодня') }}{{ plink('yesterday','Вчера') }}{{ plink('7d','7 дней') }}{{ plink('month','Месяц') }}{{ plink('all','Всё') }}
         <div class="sep"></div>

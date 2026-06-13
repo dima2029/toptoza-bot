@@ -168,6 +168,16 @@ def read_orders(point):
             "phone": phone, "name": name or "—",
             "carpets": parse_number(c(3)) or 0.0, "area": area,
             "total": total, "issued": bool(date_iss), "date_issued": date_iss,
+            # услуги отдельно: ковёр(D/E/F) одеяло(G/H) шторы(I/J) курпача(K/L)
+            "carpet_cnt": parse_number(c(3)) or 0.0,
+            "carpet_area": area,
+            "carpet_sum": parse_number(c(5)) or 0.0,
+            "blanket_cnt": parse_number(c(6)) or 0.0,
+            "blanket_sum": parse_number(c(7)) or 0.0,
+            "curtain_kg": parse_number(c(8)) or 0.0,
+            "curtain_sum": parse_number(c(9)) or 0.0,
+            "quilt_cnt": parse_number(c(10)) or 0.0,
+            "quilt_sum": parse_number(c(11)) or 0.0,
         })
     return out
 

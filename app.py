@@ -296,6 +296,25 @@ def dashboard():
             g["cnt"] += 1
         debtors = sorted(byc.values(), key=lambda x: -x["sum"])
 
+        svc_defs = [
+            ("Ковёр", "carpet_cnt", "carpet_area", "м²", "carpet_sum"),
+            ("Одеяло", "blanket_cnt", "blanket_cnt", "шт", "blanket_sum"),
+            ("Шторы", "curtain_kg", "curtain_kg", "кг", "curtain_sum"),
+            ("Курпача", "quilt_cnt", "quilt_cnt", "шт", "quilt_sum"),
+        ]
+        services = []
+        for nm, cntf, volf, unit, sumf in svc_defs:
+            services.append({
+                "name": nm, "unit": unit,
+                "cnt": round(sum(o[cntf] for o in allo)),
+                "vol": round(sum(o[volf] for o in allo), 1),
+                "sum": round(sum(o[sumf] for o in allo)),
+            })
+        tot_svc = sum(x["sum"] for x in services) or 1
+        for x in services:
+            x["share"] = round(x["sum"] / tot_svc * 100)
+        services.sort(key=lambda x: -x["sum"])
+
         def _onum(o):
             s = "".join(ch for ch in str(o["num"]) if ch.isdigit())
             return int(s) if s else 0
@@ -308,6 +327,7 @@ def dashboard():
             "issued_sum": round(sum(o["total"] for o in vyd)),
             "avg_check": round(sum(o["total"] for o in allo) / len(allo)) if allo else 0,
             "max_check": round(max((o["total"] for o in allo), default=0)),
+            "services": services,
             "orders": [{
                 "num": o["num"], "date": o["date_received"], "name": o["name"],
                 "phone": o["phone"], "area": o["area"], "total": round(o["total"]),

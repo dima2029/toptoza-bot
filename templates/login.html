@@ -14,15 +14,15 @@
     <div class="login-logo">
       <div class="mark">Т</div>
       <div class="name">ТОП-ТОЗА</div>
-      <div class="sub">Отчёты директора</div>
+      <div class="sub">{{ t('Отчёты директора') }}</div>
     </div>
     {% with msgs = get_flashed_messages() %}
-      {% if msgs %}<div class="error-msg">{{ msgs[0] }}</div>{% endif %}
+      {% if msgs %}<div class="error-msg">{{ t(msgs[0]) }}</div>{% endif %}
     {% endwith %}
     <form method="post">
-      <label class="form-label">Пароль</label>
+      <label class="form-label">{{ t('Пароль') }}</label>
       <input class="form-input" type="password" name="password" autofocus placeholder="••••••••">
-      <button class="btn btn-primary" type="submit">Войти</button>
+      <button class="btn btn-primary" type="submit">{{ t('Войти') }}</button>
     </form>
   </div>
 </div>

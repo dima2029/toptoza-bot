@@ -20,21 +20,21 @@
 <body>
 {% set CUR = 'сом.' %}
 {% set S = data.section %}
-{% macro plink(period, label) %}<a class="pill {{ 'active' if data.period==period else '' }}" href="?section={{ S }}&period={{ period }}&view={{ data.view }}">{{ label }}</a>{% endmacro %}
-{% macro vlink(view, label) %}<a class="pill {{ 'active' if data.view==view else '' }}" href="?section={{ S }}&period={{ data.period }}&view={{ view }}">{{ label }}</a>{% endmacro %}
-{% macro nlink(sec, icon, label) %}<a class="nav-item {{ 'active' if S==sec else '' }}" href="?section={{ sec }}&period={{ data.period }}&view={{ data.view }}">{{ icon }} {{ label }}</a>{% endmacro %}
+{% macro plink(period, label) %}<a class="pill {{ 'active' if data.period==period else '' }}" href="?section={{ S }}&period={{ period }}&view={{ data.view }}">{{ t(label) }}</a>{% endmacro %}
+{% macro vlink(view, label) %}<a class="pill {{ 'active' if data.view==view else '' }}" href="?section={{ S }}&period={{ data.period }}&view={{ view }}">{{ t(label) }}</a>{% endmacro %}
+{% macro nlink(sec, icon, label) %}<a class="nav-item {{ 'active' if S==sec else '' }}" href="?section={{ sec }}&period={{ data.period }}&view={{ data.view }}">{{ icon }} {{ t(label) }}</a>{% endmacro %}
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-mark">Т</div>
-      <div><div class="brand">ТОП-ТОЗА</div><div class="brand-sub">Отчёты директора</div></div>
+      <div><div class="brand">ТОП-ТОЗА</div><div class="brand-sub">{{ t('Отчёты директора') }}</div></div>
     </div>
-    <div class="nav-section">Обзор</div>
+    <div class="nav-section">{{ t('Обзор') }}</div>
     {{ nlink('summary','📊','Сводка') }}
     {{ nlink('money','💵','Деньги') }}
     {{ nlink('orders','🧺','Заказы') }}
     {{ nlink('debts','🧾','Долги') }}
-    <div class="nav-section">Аналитика</div>
+    <div class="nav-section">{{ t('Аналитика') }}</div>
     {{ nlink('points','📍','Точки') }}
     {{ nlink('drivers','🚗','Водители') }}
     {{ nlink('compare','⚖️','Сравнение') }}
@@ -47,12 +47,13 @@
 
   <main class="main">
     <div class="topbar">
-      <div class="topbar-title">{{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[S] }}<small>{{ data.plabel }} · {{ {'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view] }}</small></div>
+      <div class="topbar-title">{{ t({'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[S]) }}<small>{{ t(data.plabel) }} · {{ t({'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view]) }}</small></div>
       <div class="filters">
         {{ plink('today','Сегодня') }}{{ plink('yesterday','Вчера') }}{{ plink('7d','7 дней') }}{{ plink('month','Месяц') }}{{ plink('all','Всё') }}
         <div class="sep"></div>
         {{ vlink('total','Обе') }}{{ vlink('km9','9 км') }}{{ vlink('gulbuta','Гульбута') }}
         <div class="sep"></div>
+        <a class="tbtn" href="/lang/{{ 'ru' if lang=='tj' else 'tj' }}" title="Забон / Язык">{{ 'РУ' if lang=='tj' else 'ТҶ' }}</a>
         <a class="tbtn" href="/export.csv?period={{ data.period }}&view={{ data.view }}" title="Скачать Excel/CSV">⬇ CSV</a>
         <button class="tbtn" onclick="window.print()" title="Печать / PDF">🖨</button>
         <button class="tbtn" id="themeBtn" title="Светлая/тёмная тема">🌙</button>
@@ -74,20 +75,20 @@
       </div></div></div>
       {% endif %}
       {% if data.insights and data.insights.narrative %}
-      <div class="card"><div class="card-header"><div class="card-title">📝 Выводы</div><span class="badge badge-green">{{ data.plabel }}</span></div>
+      <div class="card"><div class="card-header"><div class="card-title">📝 {{ t('Выводы') }}</div><span class="badge badge-green">{{ data.plabel }}</span></div>
         <div class="card-body"><div class="insights-list">
         {% for line in data.insights.narrative %}<div class="ins-row"><span class="ins-ic">✓</span><span>{{ line }}</span></div>{% endfor %}
         </div></div></div>
       {% endif %}
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Приход</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
-        <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
-        <div class="kpi-card"><div class="kpi-label">Чистый поток</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">приход − расход</div></div>
-        <div class="kpi-card"><div class="kpi-label">Операций</div><div class="kpi-value">{{ data.agg.count }}</div><div class="kpi-sub">записей в журнале</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Приход') }}</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">{{ t('за период') }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Расход') }}</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">{{ t('за период') }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Чистый поток') }}</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">приход − расход</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Операций') }}</div><div class="kpi-value">{{ data.agg.count }}</div><div class="kpi-sub">записей в журнале</div></div>
       </div>
       <div class="charts-grid">
-        <div class="card"><div class="card-header"><div class="card-title">Приход и расход по дням</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="190"></canvas></div></div>
-        <div class="card"><div class="card-header"><div class="card-title">Куда уходят деньги</div></div><div class="card-body"><canvas id="cExp" height="190"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">{{ t('Приход и расход по дням') }}</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="190"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">{{ t('Куда уходят деньги') }}</div></div><div class="card-body"><canvas id="cExp" height="190"></canvas></div></div>
       </div>
       <div class="two">
         <div class="card"><div class="card-header"><div class="card-title">Операции</div><span class="badge badge-gold">журнал ДДС</span></div>
@@ -120,7 +121,7 @@
       </div>
       {% endif %}
       {% if data.monthly %}
-      <div class="card"><div class="card-header"><div class="card-title">Месячный итог</div><span class="badge badge-green">из листа «Дашборд»</span></div>
+      <div class="card"><div class="card-header"><div class="card-title">{{ t('Месячный итог') }}</div><span class="badge badge-green">из листа «Дашборд»</span></div>
         <div class="card-body"><div class="mini-grid">
           <div class="mini"><div class="l">Выручка</div><div class="v text-green">{{ fmt(data.monthly['Выручка']) }}</div></div>
           <div class="mini"><div class="l">Чистая прибыль</div><div class="v text-blue">{{ fmt(data.monthly['Чистая прибыль']) }}</div></div>
@@ -144,12 +145,12 @@
         </form>
       </div>
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Приход</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">Чистый поток</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">Операций</div><div class="kpi-value">{{ data.agg.count }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Приход') }}</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Расход') }}</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Чистый поток') }}</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Операций') }}</div><div class="kpi-value">{{ data.agg.count }}</div></div>
       </div>
-      <div class="card"><div class="card-header"><div class="card-title">Приход и расход по дням</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="120"></canvas></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">{{ t('Приход и расход по дням') }}</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="120"></canvas></div></div>
       <div class="charts-grid">
         <div class="card"><div class="card-header"><div class="card-title">Расходы по статьям</div></div><div class="card-body"><canvas id="cExp" height="200"></canvas></div></div>
         <div class="card"><div class="card-header"><div class="card-title">Приход по статьям</div></div><div class="card-body"><canvas id="cInc" height="200"></canvas></div></div>
@@ -214,10 +215,10 @@
     {# ───────────── ВОДИТЕЛИ ───────────── #}
     {% elif S == 'drivers' %}
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Приход (выручка)</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">за период</div></div>
-        <div class="kpi-card"><div class="kpi-label">Расход</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">Чистый поток</div><div class="kpi-value text-green">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">Операций</div><div class="kpi-value">{{ data.agg.count }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Приход (выручка)</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">{{ t('за период') }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Расход') }}</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Чистый поток') }}</div><div class="kpi-value text-green">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Операций') }}</div><div class="kpi-value">{{ data.agg.count }}</div></div>
       </div>
       <div class="card"><div class="card-header"><div class="card-title">Приход по статьям</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cInc" height="150"></canvas></div></div>
       <div class="card"><div class="card-header"><div class="card-title">Поступления (выручка от водителей)</div></div>

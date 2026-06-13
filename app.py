@@ -20,6 +20,7 @@ from flask import (Flask, request, session, redirect, url_for,
 import sheets
 import db
 import insights
+import i18n
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "toptoza-dev-secret-change-me")
@@ -48,6 +49,20 @@ def ensure_synced(force=False):
         _last_sync = time.time()
     except Exception as e:
         app.logger.warning("sync failed (оставляю прошлые данные): %s", e)
+
+
+@app.context_processor
+def inject_i18n():
+    lang = request.cookies.get("lang", "ru")
+    return {"lang": lang, "t": (lambda s: i18n.t(s, lang))}
+
+
+@app.route("/lang/<code>")
+def set_lang(code):
+    code = "tj" if code == "tj" else "ru"
+    resp = redirect(request.referrer or url_for("dashboard"))
+    resp.set_cookie("lang", code, max_age=60 * 60 * 24 * 365)
+    return resp
 
 
 def login_required(f):

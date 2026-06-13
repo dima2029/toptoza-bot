@@ -168,16 +168,18 @@
       {% set od = data.orders_data %}
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">{{ t('Всего заказов') }}</div><div class="kpi-value">{{ fmt(od.total) }}</div></div>
-        <div class="kpi-card"><div class="kpi-label">{{ t('Выдано') }}</div><div class="kpi-value text-green">{{ fmt(od.issued) }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">{{ t('Выдано') }}</div><div class="kpi-value text-green">{{ fmt(od.issued) }}</div><div class="kpi-sub text-green">{{ fmt(od.issued_sum) }} сом.</div></div>
         <div class="kpi-card"><div class="kpi-label">{{ t('В работе') }}</div><div class="kpi-value text-gold">{{ fmt(od.work) }}</div></div>
         <div class="kpi-card"><div class="kpi-label">Площадь · выручка</div><div class="kpi-value">{{ fmt(od.area) }} <span class="kpi-cur">м²</span></div><div class="kpi-sub text-green">{{ fmt(od.revenue) }} сом.</div></div>
+        <div class="kpi-card"><div class="kpi-label">Средний чек</div><div class="kpi-value">{{ fmt(od.avg_check) }} <span class="kpi-cur">сом.</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">Макс чек</div><div class="kpi-value">{{ fmt(od.max_check) }} <span class="kpi-cur">сом.</span></div></div>
       </div>
-      <div class="card"><div class="card-header"><div class="card-title">Заказы</div><span class="badge badge-gold">в работе — сверху</span></div>
+      <div class="card"><div class="card-header"><div class="card-title">Заказы</div><span class="badge badge-gold">свежие — сверху</span></div>
         <div class="table-wrap"><table>
-          <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th class="hide-mobile">Телефон</th><th>м²</th><th>Сумма</th><th>Статус</th></tr></thead>
+          <thead><tr><th>№</th><th>Дата</th>{% if data.view=='total' %}<th>Точка</th>{% endif %}<th>Клиент</th><th class="hide-mobile">Телефон</th><th>м²</th><th>Сумма</th><th>Статус</th></tr></thead>
           <tbody>
           {% for o in od.orders %}
-            <tr><td>{{ o.num }}</td><td>{{ o.date }}</td><td><b>{{ o.name }}</b></td><td class="hide-mobile">{{ o.phone }}</td>
+            <tr><td>{{ o.num }}</td><td>{{ o.date }}</td>{% if data.view=='total' %}<td>{{ o.point }}</td>{% endif %}<td><b>{{ o.name }}</b></td><td class="hide-mobile">{{ o.phone }}</td>
               <td>{{ o.area }}</td><td><b>{{ fmt(o.total) }}</b></td>
               <td>{% if o.issued %}<span class="badge badge-green">выдан</span>{% else %}<span class="badge badge-gold">в работе</span>{% endif %}</td></tr>
           {% endfor %}

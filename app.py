@@ -305,6 +305,9 @@ def dashboard():
             "revenue": round(sum(o["total"] for o in allo)),
             "area": round(sum(o["area"] for o in allo), 1),
             "debt": round(sum(o["total"] for o in rab)),
+            "issued_sum": round(sum(o["total"] for o in vyd)),
+            "avg_check": round(sum(o["total"] for o in allo) / len(allo)) if allo else 0,
+            "max_check": round(max((o["total"] for o in allo), default=0)),
             "orders": [{
                 "num": o["num"], "date": o["date_received"], "name": o["name"],
                 "phone": o["phone"], "area": o["area"], "total": round(o["total"]),

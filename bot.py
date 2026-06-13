@@ -537,6 +537,14 @@ async def business_alerts(context: ContextTypes.DEFAULT_TYPE):
         log.warning("business alerts: %s", e)
 
 
+def _transient(msg):
+    """Временные ошибки Google API — не повод слать алерт «таблица сломалась»."""
+    m = str(msg).lower()
+    return any(x in m for x in ("429", "quota", "rate limit", "rate_limit",
+                                "timeout", "timed out", "503", "500", "unavailable",
+                                "deadline"))
+
+
 async def sync_job(context: ContextTypes.DEFAULT_TYPE):
     """Раз в час: тянем журнал из Google Таблиц в базу + проверяем, не сломалась ли таблица."""
     try:
@@ -545,6 +553,7 @@ async def sync_job(context: ContextTypes.DEFAULT_TYPE):
         log.warning("db init: %s", e)
         return
     problems = {}
+    transient = False
     for p in sheets.POINTS:
         name = p["name"]
         try:
@@ -556,12 +565,23 @@ async def sync_job(context: ContextTypes.DEFAULT_TYPE):
                 if dmin is not None:  # раньше данные были, а теперь пусто → подозрительно
                     problems[f"журнал «{name}»"] = "пусто или нет доступа"
         except Exception as e:
-            problems[f"журнал «{name}»"] = str(e)[:140]
+            if _transient(e):
+                transient = True
+                log.warning("журнал %s: временная ошибка API (пропускаю): %s", name, str(e)[:60])
+            else:
+                problems[f"журнал «{name}»"] = str(e)[:140]
         try:
             if not sheets.read_dashboard(p):
                 problems[f"дашборд «{name}»"] = "лист «Дашборд» пуст"
         except Exception as e:
-            problems[f"дашборд «{name}»"] = str(e)[:140]
+            if _transient(e):
+                transient = True
+                log.warning("дашборд %s: временная ошибка API (пропускаю): %s", name, str(e)[:60])
+            else:
+                problems[f"дашборд «{name}»"] = str(e)[:140]
+
+    if transient:
+        return  # временный лимит/таймаут — не трогаем алерты и состояние, ждём след. цикла
 
     new = set(problems) - _alerted
     fixed = _alerted - set(problems)

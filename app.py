@@ -28,7 +28,7 @@ SITE_PASSWORD = os.environ.get("SITE_PASSWORD", "toptoza")
 GOAL_REVENUE = float(os.environ.get("GOAL_REVENUE", "0") or 0)  # цель выручки на месяц
 
 _last_sync = 0
-_SYNC_EVERY = 120  # сек
+_SYNC_EVERY = 300  # сек — реже, чтобы не упираться в минутную квоту Sheets API
 ZERO_MONTHLY = {"Выручка": 0, "Всего заказов": 0, "Выдано": 0,
                 "В работе": 0, "Сумма долга": 0, "Чистая прибыль": 0}
 _monthly_cache = {"km9": dict(ZERO_MONTHLY), "gulbuta": dict(ZERO_MONTHLY)}

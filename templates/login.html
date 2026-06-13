@@ -12,8 +12,7 @@
 <div class="login-page">
   <div class="login-card">
     <div class="login-logo">
-      <div class="mark">Т</div>
-      <div class="name">ТОП-ТОЗА</div>
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="ТОП-ТОЗА" style="max-width:240px;width:85%;height:auto">
       <div class="sub">{{ t('Отчёты директора') }}</div>
     </div>
     {% with msgs = get_flashed_messages() %}

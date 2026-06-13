@@ -9,8 +9,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ТОП-ТОЗА">
-<link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon-32.png') }}">
 <script>if(localStorage.getItem('theme')==='dark')document.documentElement.dataset.theme='dark';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -26,9 +26,9 @@
 <div class="app">
   <div class="nav-overlay" onclick="document.body.classList.remove('nav-open')"></div>
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-mark">Т</div>
-      <div><div class="brand">ТОП-ТОЗА</div><div class="brand-sub">{{ t('Отчёты директора') }}</div></div>
+    <div class="sidebar-logo" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <img src="{{ url_for('static', filename='logo.png') }}" alt="ТОП-ТОЗА" style="max-width:175px;width:100%;height:auto">
+      <div class="brand-sub">{{ t('Отчёты директора') }}</div>
     </div>
     <div class="nav-section">{{ t('Обзор') }}</div>
     {{ nlink('summary','📊','Сводка') }}

@@ -374,6 +374,62 @@ def build_daily_report():
     return "\n".join(lines)
 
 
+def make_chart_png():
+    """PNG-график приход/расход по дням за 14 дней. None — если нет данных."""
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except Exception as e:
+        log.warning("matplotlib недоступен: %s", e)
+        return None
+    today = dt.date.today()
+    start = today - dt.timedelta(days=13)
+    ops = db.query_ops(["km9", "gulbuta"], start, today)
+    by = {}
+    for o in ops:
+        if o["date"]:
+            s = by.setdefault(o["date"], [0, 0])
+            s[0] += o["income"]
+            s[1] += o["expense"]
+    days = sorted(by)
+    if not days:
+        return None
+    labels = [d.strftime("%d.%m") for d in days]
+    inc = [by[d][0] for d in days]
+    exp = [by[d][1] for d in days]
+    fig, ax = plt.subplots(figsize=(8, 3.4), dpi=130)
+    x = range(len(days))
+    w = 0.4
+    ax.bar([i - w / 2 for i in x], inc, width=w, color="#00B956", label="Приход")
+    ax.bar([i + w / 2 for i in x], exp, width=w, color="#F0455A", label="Расход")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(labels, rotation=45, ha="right", fontsize=7)
+    ax.set_title("Приход и расход по дням (14 дней)", fontsize=11)
+    ax.legend(fontsize=8)
+    ax.grid(axis="y", alpha=.2)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+async def send_full_report(bot, chat):
+    """Отправить текстовую сводку + график-картинку."""
+    await bot.send_message(chat, build_daily_report(), parse_mode="Markdown",
+                           disable_web_page_preview=True)
+    try:
+        buf = make_chart_png()
+        if buf:
+            await bot.send_photo(chat, photo=buf)
+    except Exception as e:
+        log.warning("chart send: %s", e)
+
+
 async def dashboard_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_allowed(update):
         await update.message.reply_text("⛔ У вас нет доступа.")
@@ -390,28 +446,19 @@ async def report_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text("Собираю сводку, секунду…")
     try:
-        text = build_daily_report()
+        await send_full_report(context.bot, update.effective_chat.id)
     except Exception as e:
         log.exception("report")
         await update.message.reply_text(f"Не удалось собрать сводку: {e}")
-        return
-    await update.message.reply_text(text, parse_mode="Markdown",
-                                    disable_web_page_preview=True)
 
 
 async def daily_report_job(context: ContextTypes.DEFAULT_TYPE):
     """Авто-отправка сводки всем разрешённым пользователям."""
     if db.get_setting("daily_on", "1") != "1":
         return
-    try:
-        text = build_daily_report()
-    except Exception as e:
-        log.exception("daily report build")
-        return
     for uid in (ALLOWED_USERS or []):
         try:
-            await context.bot.send_message(uid, text, parse_mode="Markdown",
-                                           disable_web_page_preview=True)
+            await send_full_report(context.bot, uid)
         except Exception as e:
             log.warning("Не смог отправить отчёт %s: %s", uid, e)
 
@@ -626,8 +673,7 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = q.data
     if data == "svodka":
         await context.bot.send_message(chat, "Собираю сводку…")
-        await context.bot.send_message(chat, build_daily_report(),
-                                       parse_mode="Markdown", disable_web_page_preview=True)
+        await send_full_report(context.bot, chat)
     elif data in ("km9", "gulbuta"):
         point = POINTS[0 if data == "km9" else 1]
         try:

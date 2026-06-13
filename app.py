@@ -135,6 +135,18 @@ def prev_month_range(d):
     return pe.replace(day=1), pe
 
 
+def prev_bounds(period, start, end):
+    """Предыдущий сопоставимый период для сравнения."""
+    if period == "month":
+        return prev_month_range(dt.date.today())
+    if start is None:          # «всё» — предыдущего нет
+        return None, None
+    length = (end - start).days + 1
+    pend = start - dt.timedelta(days=1)
+    pstart = pend - dt.timedelta(days=length - 1)
+    return pstart, pend
+
+
 def compute_health(point_keys):
     """Светофор, прогноз на месяц, сравнение с прошлым месяцем, план/факт."""
     today = dt.date.today()
@@ -211,6 +223,29 @@ def dashboard():
         insights_data = insights.analytics(ops)
         insights_data["narrative"] = insights.narrative(ops, prev_ops)
 
+    comparison = None
+    if section == "compare":
+        ps, pend = prev_bounds(period, start, end)
+        prev_ops = db.query_ops(point_keys, ps, pend) if ps else []
+        ci = sum(x["income"] for x in ops)
+        ce = sum(x["expense"] for x in ops)
+        pi = sum(x["income"] for x in prev_ops)
+        pex = sum(x["expense"] for x in prev_ops)
+
+        def _d(a, b):
+            return round((a - b) / b * 100) if b else None
+
+        comparison = {
+            "rows": [
+                {"label": "Приход", "cur": round(ci), "prev": round(pi), "d": _d(ci, pi)},
+                {"label": "Расход", "cur": round(ce), "prev": round(pex), "d": _d(ce, pex)},
+                {"label": "Чистый поток", "cur": round(ci - ce), "prev": round(pi - pex), "d": _d(ci - ce, pi - pex)},
+                {"label": "Операций", "cur": len(ops), "prev": len(prev_ops), "d": _d(len(ops), len(prev_ops))},
+            ],
+            "has_prev": bool(ps),
+            "prev_label": (ps.strftime('%d.%m.%Y') + " – " + pend.strftime('%d.%m.%Y')) if ps else "—",
+        }
+
     # последние операции
     recent = [{
         "in": bool(o["income"]),
@@ -239,7 +274,8 @@ def dashboard():
     data = {
         "agg": agg, "recent": recent, "compare": compare,
         "monthly": monthly, "monthly_by_point": monthly_by_point,
-        "health": health, "insights": insights_data, "q": q,
+        "health": health, "insights": insights_data,
+        "comparison": comparison, "q": q,
         "period": period, "view": view, "section": section, "plabel": plabel,
         "range": (f"{dmin.strftime('%d.%m.%Y')} — {dmax.strftime('%d.%m.%Y')}"
                   if dmin and dmax else "нет данных"),

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ТОП-ТОЗА · {{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители'}[data.section] }}</title>
+<title>ТОП-ТОЗА · {{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[data.section] }}</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#00B956">
 <meta name="mobile-web-app-capable" content="yes">
@@ -37,6 +37,7 @@
     <div class="nav-section">Аналитика</div>
     {{ nlink('points','📍','Точки') }}
     {{ nlink('drivers','🚗','Водители') }}
+    {{ nlink('compare','⚖️','Сравнение') }}
     <div class="sidebar-footer">
       <div class="avatar">Д</div>
       <div style="flex:1"><div class="who">Директор</div><div class="who-sub">{{ data.range }}</div></div>
@@ -46,7 +47,7 @@
 
   <main class="main">
     <div class="topbar">
-      <div class="topbar-title">{{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители'}[S] }}<small>{{ data.plabel }} · {{ {'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view] }}</small></div>
+      <div class="topbar-title">{{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[S] }}<small>{{ data.plabel }} · {{ {'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view] }}</small></div>
       <div class="filters">
         {{ plink('today','Сегодня') }}{{ plink('yesterday','Вчера') }}{{ plink('7d','7 дней') }}{{ plink('month','Месяц') }}{{ plink('all','Всё') }}
         <div class="sep"></div>
@@ -228,6 +229,28 @@
         {% endfor %}{% else %}<div class="empty">За этот период поступлений нет.</div>{% endif %}
       </div>
       <div class="card"><div class="card-body"><div class="empty">Разбивка по конкретным водителям (имя, рейсы, ГСМ, ЗП) появится, когда заведём лист с водителями в нужном формате.</div></div></div>
+
+    {# ───────────── СРАВНЕНИЕ ───────────── #}
+    {% elif S == 'compare' %}
+      {% if data.comparison %}{% set cmp = data.comparison %}
+      <div class="card"><div class="card-header"><div class="card-title">Сравнение периодов</div>
+        <span class="badge badge-green">{{ data.plabel }} vs {{ cmp.prev_label }}</span></div>
+        {% if cmp.has_prev %}
+        <div class="table-wrap"><table>
+          <thead><tr><th>Показатель</th><th>Прошлый период</th><th>Текущий период</th><th>Изменение</th></tr></thead>
+          <tbody>
+          {% for r in cmp.rows %}
+            <tr><td><b>{{ r.label }}</b></td><td>{{ fmt(r.prev) }}</td><td><b>{{ fmt(r.cur) }}</b></td>
+              <td>{% if r.d is not none %}<span class="{{ 'text-green' if r.d>=0 else 'text-red' }}">{{ '▲' if r.d>=0 else '▼' }} {{ r.d|abs }}%</span>{% else %}—{% endif %}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        {% else %}<div class="empty">Для периода «Всё» нет предыдущего для сравнения.<br>Выбери вверху «Месяц», «7 дней» или «Вчера».</div>{% endif %}
+      </div>
+      {% if cmp.has_prev %}
+      <div class="card"><div class="card-header"><div class="card-title">Текущий vs прошлый</div></div><div class="card-body"><canvas id="cCompare" height="120"></canvas></div></div>
+      {% endif %}
+      {% endif %}
     {% endif %}
     </div>
   </main>
@@ -269,6 +292,13 @@ if($("cal")){const days=D.agg.by_day;const mx=Math.max(1,...days.map(d=>d.income
       <span class="d" style="${hot?'color:rgba(255,255,255,.85)':''}">${d.date}</span>
       <span class="s" style="${hot?'color:#fff':''}">${d.income?(d.income>=1000?fmt(Math.round(d.income/1000))+'к':fmt(d.income)):'—'}</span></div>`;}).join("")
     :'<div class="empty">Нет данных за период</div>';}
+
+// сравнение периодов
+if($("cCompare") && D.comparison){const r=D.comparison.rows.slice(0,3);
+  new Chart(cCompare,{type:"bar",data:{labels:r.map(x=>x.label),datasets:[
+    {label:"Прошлый",data:r.map(x=>x.prev),backgroundColor:"#94A3B8",borderRadius:5,maxBarThickness:36},
+    {label:"Текущий",data:r.map(x=>x.cur),backgroundColor:"#00B956",borderRadius:5,maxBarThickness:36}]},
+    options:{...LG,scales:{x:{grid:{display:false}},y:{grid:{color:"#EDEFF3"}}}}});}
 
 // выручка по дням недели
 if($("cWd") && D.insights){const w=D.insights.weekday;

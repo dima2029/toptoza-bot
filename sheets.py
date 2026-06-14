@@ -199,15 +199,19 @@ def read_orders(point):
             "client": client, "phone": phone, "name": name or "—",
             "carpets": carpet_cnt, "area": area,
             "total": total, "issued": bool(date_iss), "date_issued": date_iss,
-            # услуги: количество/объём и сумма = кол-во × цена
+            # услуги: количество/объём, цена и сумма = кол-во × цена
             "carpet_cnt": carpet_cnt,
             "carpet_area": area,
+            "carpet_price": carpet_price,
             "carpet_sum": round(area * carpet_price, 2),
             "blanket_cnt": blanket_cnt,
+            "blanket_price": blanket_price,
             "blanket_sum": round(blanket_cnt * blanket_price, 2),
             "curtain_kg": curtain_kg,
+            "curtain_price": curtain_price,
             "curtain_sum": round(curtain_kg * curtain_price, 2),
             "quilt_cnt": quilt_cnt,
+            "quilt_price": quilt_price,
             "quilt_sum": round(quilt_cnt * quilt_price, 2),
         })
     return out

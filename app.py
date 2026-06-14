@@ -301,24 +301,30 @@ def dashboard():
             g["cnt"] += 1
         debtors = sorted(byc.values(), key=lambda x: -x["sum"])
 
+        # (name, count_field, unit, sum_field, price_field)
         svc_defs = [
-            ("Ковёр", "carpet_cnt", "carpet_area", "м²", "carpet_sum"),
-            ("Одеяло", "blanket_cnt", "blanket_cnt", "шт", "blanket_sum"),
-            ("Шторы", "curtain_kg", "curtain_kg", "кг", "curtain_sum"),
-            ("Курпача", "quilt_cnt", "quilt_cnt", "шт", "quilt_sum"),
+            ("Ковёр",   "carpet_cnt",  "м²",  "carpet_sum",  "carpet_price"),
+            ("Одеяло",  "blanket_cnt", "шт",  "blanket_sum", "blanket_price"),
+            ("Шторы",   "curtain_kg",  "кг",  "curtain_sum", "curtain_price"),
+            ("Курпача", "quilt_cnt",   "шт",  "quilt_sum",   "quilt_price"),
         ]
         services = []
-        for nm, cntf, volf, unit, sumf in svc_defs:
+        for nm, cntf, unit, sumf, pricef in svc_defs:
+            svc_sum = round(sum(o[sumf] for o in allo))
+            prices = [o[pricef] for o in allo if o.get(pricef, 0) > 0]
+            avg_price = round(sum(prices) / len(prices)) if prices else 0
+            # объём: для ковра — м² = сумма ÷ цена; для остальных — количество штук/кг
+            if nm == "Ковёр":
+                vol = round(svc_sum / avg_price, 1) if avg_price else 0
+            else:
+                vol = round(sum(o[cntf] for o in allo), 1)
             services.append({
                 "name": nm, "unit": unit,
-                "cnt": round(sum(o[cntf] for o in allo)),
-                "vol": round(sum(o[volf] for o in allo), 1),
-                "sum": round(sum(o[sumf] for o in allo)),
+                "vol": vol, "sum": svc_sum, "price": avg_price,
             })
         tot_svc = sum(x["sum"] for x in services) or 1
         for x in services:
             x["share"] = round(x["sum"] / tot_svc * 100)
-            x["price"] = round(x["sum"] / x["vol"]) if x["vol"] else 0
         services.sort(key=lambda x: -x["sum"])
 
         def _onum(o):

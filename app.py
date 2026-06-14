@@ -318,6 +318,7 @@ def dashboard():
         tot_svc = sum(x["sum"] for x in services) or 1
         for x in services:
             x["share"] = round(x["sum"] / tot_svc * 100)
+            x["price"] = round(x["sum"] / x["vol"]) if x["vol"] else 0
         services.sort(key=lambda x: -x["sum"])
 
         def _onum(o):

@@ -185,7 +185,7 @@
       <div class="card"><div class="card-header"><div class="card-title">Услуги — что приносит выручку</div></div>
         <div class="card-body"><div class="company-bars">
         {% for s in od.services %}
-          <div class="cb-row"><div class="cb-label"><span>{{ s.name }} · {{ s.vol }} {{ s.unit }}</span><b>{{ fmt(s.sum) }} сом. · {{ s.share }}%</b></div>
+          <div class="cb-row"><div class="cb-label"><span>{{ s.name }} · {{ s.vol }} {{ s.unit }}</span><b>{{ fmt(s.sum) }} сом. · {{ s.price }} сом/{{ s.unit }} · {{ s.share }}%</b></div>
             <div class="cb-track"><div class="cb-fill" style="width:{{ s.share }}%;background:#00B956"></div></div></div>
         {% endfor %}
         </div></div>

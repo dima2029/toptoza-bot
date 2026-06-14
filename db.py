@@ -10,7 +10,7 @@ import hashlib
 import datetime as dt
 
 from sqlalchemy import (create_engine, Column, Integer, String, Float, Date,
-                        String as Str, UniqueConstraint)
+                        String as Str)
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
@@ -25,8 +25,8 @@ def _db_url():
     return url
 
 
-engine = create_engine(_db_url(), pool_pre_ping=True, future=True)
-Session = sessionmaker(bind=engine, future=True)
+engine = create_engine(_db_url(), pool_pre_ping=True)
+Session = sessionmaker(engine)
 
 
 class Transaction(Base):

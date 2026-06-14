@@ -9,6 +9,7 @@
   GOOGLE_CREDENTIALS, SHEET_ID_KM9, SHEET_ID_GULBUTA
 """
 import os
+import re
 import json
 import datetime as dt
 
@@ -48,7 +49,7 @@ def parse_number(text):
 
 
 _MONTHS = {
-    "янв": 1, "фев": 2, "мар": 3, "апр": 4, "ма": 5, "июн": 6,
+    "янв": 1, "фев": 2, "мар": 3, "апр": 4, "май": 5, "мая": 5, "июн": 6,
     "июл": 7, "авг": 8, "сен": 9, "окт": 10, "ноя": 11, "дек": 12,
 }
 
@@ -107,6 +108,11 @@ def parse_date(text, default_year=None):
             elif day is None:
                 day = n
         else:
+            # Разделить слитный токен вида «29мая» на цифровую и буквенную части
+            m = re.match(r'^(\d+)([а-яё]+)$', t)
+            if m and day is None:
+                day = int(m.group(1))
+                t = m.group(2)
             for pref, mnum in _MONTHS.items():
                 if t.startswith(pref):
                     month = mnum

@@ -156,8 +156,10 @@ def read_dashboard(point):
 
 def read_orders(point):
     """Журнал заказов из листа «процесс работы».
-    Колонки: A №, B дата приёма, C клиент(тел+имя), D ковёр шт, E м², F сумма,
-    G одеяло, H, I шторы, J, K курпача, L, M ИТОГО, N дата выдачи, O подпись.
+    Колонки: A №, B дата приёма, C клиент(тел+имя), D ковёр шт, E м², F цена/м²,
+    G одеяло шт, H цена/шт, I шторы кг, J цена/кг, K курпача шт, L цена/шт,
+    M ИТОГО, N дата выдачи, O подпись.
+    Суммы по услугам считаем сами: количество × цена (F, H, J, L — цены, не суммы).
     Заказ «в работе», если дата выдачи (N) пустая; иначе «выдан».
     """
     sh = _open(point)
@@ -182,23 +184,34 @@ def read_orders(point):
         parts = client.split(" ", 1)
         phone = parts[0] if parts and parts[0].replace("+", "").isdigit() else ""
         name = (parts[1] if phone and len(parts) > 1 else client).strip()
+
+        carpet_cnt  = parse_number(c(3)) or 0.0
+        carpet_price = parse_number(c(5)) or 0.0   # F = цена за м²
+        blanket_cnt  = parse_number(c(6)) or 0.0
+        blanket_price = parse_number(c(7)) or 0.0  # H = цена за шт
+        curtain_kg   = parse_number(c(8)) or 0.0
+        curtain_price = parse_number(c(9)) or 0.0  # J = цена за кг
+        quilt_cnt    = parse_number(c(10)) or 0.0
+        quilt_price  = parse_number(c(11)) or 0.0  # L = цена за шт
+
         out.append({
             "num": c(0), "date_received": c(1), "date": parse_date(c(1)),
             "client": client, "phone": phone, "name": name or "—",
-            "carpets": parse_number(c(3)) or 0.0, "area": area,
+            "carpets": carpet_cnt, "area": area,
             "total": total, "issued": bool(date_iss), "date_issued": date_iss,
-            # услуги отдельно: ковёр(D/E/F) одеяло(G/H) шторы(I/J) курпача(K/L)
-            "carpet_cnt": parse_number(c(3)) or 0.0,
+            # услуги: количество/объём и сумма = кол-во × цена
+            "carpet_cnt": carpet_cnt,
             "carpet_area": area,
-            "carpet_sum": parse_number(c(5)) or 0.0,
-            "blanket_cnt": parse_number(c(6)) or 0.0,
-            "blanket_sum": parse_number(c(7)) or 0.0,
-            "curtain_kg": parse_number(c(8)) or 0.0,
-            "curtain_sum": parse_number(c(9)) or 0.0,
-            "quilt_cnt": parse_number(c(10)) or 0.0,
-            "quilt_sum": parse_number(c(11)) or 0.0,
+            "carpet_sum": round(area * carpet_price, 2),
+            "blanket_cnt": blanket_cnt,
+            "blanket_sum": round(blanket_cnt * blanket_price, 2),
+            "curtain_kg": curtain_kg,
+            "curtain_sum": round(curtain_kg * curtain_price, 2),
+            "quilt_cnt": quilt_cnt,
+            "quilt_sum": round(quilt_cnt * quilt_price, 2),
         })
     return out
+
 
 
 def read_journal(point):

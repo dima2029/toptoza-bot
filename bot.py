@@ -448,6 +448,21 @@ async def dashboard_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def parol_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_allowed(update):
+        await update.message.reply_text("⛔ У вас нет доступа.")
+        return
+    pwd = os.environ.get("SITE_PASSWORD", "toptoza-dev")
+    await update.message.reply_text(
+        "🔐 *Вход в панель директора*\n\n"
+        f"🔗 Сайт: {SITE_URL}\n"
+        f"🔑 Пароль: `{pwd}`\n\n"
+        "Открой ссылку, нажми на пароль чтобы скопировать, и войди.",
+        parse_mode="Markdown",
+        disable_web_page_preview=True,
+    )
+
+
 async def report_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_allowed(update):
         await update.message.reply_text("⛔ У вас нет доступа.")
@@ -780,6 +795,7 @@ def main():
                 BotCommand("km9", "📍 Отчёт 9 км"),
                 BotCommand("gulbuta", "📍 Отчёт Гульбута"),
                 BotCommand("dashboard", "🌐 Открыть сайт"),
+                BotCommand("parol", "🔐 Пароль для входа на сайт"),
                 BotCommand("nastroiki", "⚙️ Настройки"),
             ])
             await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
@@ -796,6 +812,7 @@ def main():
     app.add_handler(CommandHandler("gulbuta", gulbuta))
     app.add_handler(CommandHandler("dashboard", dashboard_cmd))
     app.add_handler(CommandHandler("sait", dashboard_cmd))
+    app.add_handler(CommandHandler("parol", parol_cmd))
     app.add_handler(CommandHandler("report", report_cmd))
     app.add_handler(CommandHandler("svodka", report_cmd))
     app.add_handler(CommandHandler("menu", menu_cmd))

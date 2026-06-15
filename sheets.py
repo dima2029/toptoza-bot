@@ -185,34 +185,26 @@ def read_orders(point):
         phone = parts[0] if parts and parts[0].replace("+", "").isdigit() else ""
         name = (parts[1] if phone and len(parts) > 1 else client).strip()
 
-        carpet_cnt  = parse_number(c(3)) or 0.0
-        carpet_price = parse_number(c(5)) or 0.0   # F = цена за м²
-        blanket_cnt  = parse_number(c(6)) or 0.0
-        blanket_price = parse_number(c(7)) or 0.0  # H = цена за шт
-        curtain_kg   = parse_number(c(8)) or 0.0
-        curtain_price = parse_number(c(9)) or 0.0  # J = цена за кг
-        quilt_cnt    = parse_number(c(10)) or 0.0
-        quilt_price  = parse_number(c(11)) or 0.0  # L = цена за шт
+        # F/H/J/L — это УЖЕ суммы по услугам (кол-во×ставка посчитано в листе),
+        # а не цены за единицу. Берём напрямую.
+        carpet_cnt = parse_number(c(3)) or 0.0
+        carpet_sum = parse_number(c(5)) or 0.0   # F = сумма за ковры
+        blanket_cnt = parse_number(c(6)) or 0.0
+        blanket_sum = parse_number(c(7)) or 0.0  # H = сумма за одеяла
+        curtain_kg = parse_number(c(8)) or 0.0
+        curtain_sum = parse_number(c(9)) or 0.0  # J = сумма за шторы
+        quilt_cnt = parse_number(c(10)) or 0.0
+        quilt_sum = parse_number(c(11)) or 0.0   # L = сумма за курпача
 
         out.append({
             "num": c(0), "date_received": c(1), "date": parse_date(c(1)),
             "client": client, "phone": phone, "name": name or "—",
             "carpets": carpet_cnt, "area": area,
             "total": total, "issued": bool(date_iss), "date_issued": date_iss,
-            # услуги: количество/объём, цена и сумма = кол-во × цена
-            "carpet_cnt": carpet_cnt,
-            "carpet_area": area,
-            "carpet_price": carpet_price,
-            "carpet_sum": round(area * carpet_price, 2),
-            "blanket_cnt": blanket_cnt,
-            "blanket_price": blanket_price,
-            "blanket_sum": round(blanket_cnt * blanket_price, 2),
-            "curtain_kg": curtain_kg,
-            "curtain_price": curtain_price,
-            "curtain_sum": round(curtain_kg * curtain_price, 2),
-            "quilt_cnt": quilt_cnt,
-            "quilt_price": quilt_price,
-            "quilt_sum": round(quilt_cnt * quilt_price, 2),
+            "carpet_cnt": carpet_cnt, "carpet_area": area, "carpet_sum": carpet_sum,
+            "blanket_cnt": blanket_cnt, "blanket_sum": blanket_sum,
+            "curtain_kg": curtain_kg, "curtain_sum": curtain_sum,
+            "quilt_cnt": quilt_cnt, "quilt_sum": quilt_sum,
         })
     return out
 

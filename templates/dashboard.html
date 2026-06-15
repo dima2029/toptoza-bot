@@ -163,6 +163,8 @@
         <div class="kpi-card"><div class="kpi-label">{{ t('Расход') }}</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
         <div class="kpi-card"><div class="kpi-label">{{ t('Чистый поток') }}</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
         <div class="kpi-card"><div class="kpi-label">{{ t('Операций') }}</div><div class="kpi-value">{{ data.agg.count }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Инкассация (в гл. кассу)</div><div class="kpi-value text-gold">{{ fmt(data.agg.cap_inkass) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">не входит в расход</div></div>
+        <div class="kpi-card"><div class="kpi-label">Капитальные</div><div class="kpi-value text-gold">{{ fmt(data.agg.cap_capex) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">закуп + ремонт помещения</div></div>
       </div>
       <div class="card"><div class="card-header"><div class="card-title">{{ t('Приход и расход по дням') }}</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="120"></canvas></div></div>
       <div class="charts-grid">

@@ -171,6 +171,9 @@ def aggregate(ops):
         "inc_article": [{"article": a, "sum": round(s)} for a, s in iarts],
         "capital": [{"name": k, "sum": round(v)} for k, v in cap.items() if v],
         "capital_total": round(sum(cap.values())),
+        "cap_inkass": round(cap["Инкассация (в гл. кассу)"]),
+        "cap_capex": round(cap["Закуп оборудования"] + cap["Ремонт помещения"]),
+        "cap_popoln": round(cap["Пополнение кассы"]),
     }
 
 

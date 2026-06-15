@@ -97,8 +97,7 @@
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">{{ t('Приход') }}</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">{{ t('за период') }}</div></div>
         <div class="kpi-card"><div class="kpi-label">{{ t('Расход') }}</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">{{ t('за период') }}</div></div>
-        <div class="kpi-card"><div class="kpi-label">{{ t('Чистый поток') }}</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">приход − расход</div></div>
-        <div class="kpi-card"><div class="kpi-label">{{ t('Операций') }}</div><div class="kpi-value">{{ data.agg.count }}</div><div class="kpi-sub">записей в журнале</div></div>
+        <div class="kpi-card"><div class="kpi-label">Остаток</div><div class="kpi-value {{ 'text-green' if data.agg.ostatok>=0 else 'text-red' }}">{{ fmt(data.agg.ostatok) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">приход − расход − инкассация</div></div>
       </div>
       <div class="charts-grid">
         <div class="card"><div class="card-header"><div class="card-title">{{ t('Приход и расход по дням') }}</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="190"></canvas></div></div>
@@ -161,8 +160,7 @@
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">{{ t('Приход') }}</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
         <div class="kpi-card"><div class="kpi-label">{{ t('Расход') }}</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">{{ t('Чистый поток') }}</div><div class="kpi-value {{ 'text-green' if data.agg.net>=0 else 'text-red' }}">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">{{ t('Операций') }}</div><div class="kpi-value">{{ data.agg.count }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Остаток</div><div class="kpi-value {{ 'text-green' if data.agg.ostatok>=0 else 'text-red' }}">{{ fmt(data.agg.ostatok) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">приход − расход − инкассация</div></div>
         <div class="kpi-card"><div class="kpi-label">Инкассация (в гл. кассу)</div><div class="kpi-value text-gold">{{ fmt(data.agg.cap_inkass) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">не входит в расход</div></div>
         <div class="kpi-card"><div class="kpi-label">Капитальные</div><div class="kpi-value text-gold">{{ fmt(data.agg.cap_capex) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">закуп + ремонт помещения</div></div>
       </div>
@@ -279,8 +277,7 @@
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">Приход (выручка)</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">{{ t('за период') }}</div></div>
         <div class="kpi-card"><div class="kpi-label">{{ t('Расход') }}</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">{{ t('Чистый поток') }}</div><div class="kpi-value text-green">{{ fmt(data.agg.net) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">{{ t('Операций') }}</div><div class="kpi-value">{{ data.agg.count }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Остаток</div><div class="kpi-value {{ 'text-green' if data.agg.ostatok>=0 else 'text-red' }}">{{ fmt(data.agg.ostatok) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">приход − расход − инкассация</div></div>
       </div>
       <div class="card"><div class="card-header"><div class="card-title">Приход по статьям</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cInc" height="150"></canvas></div></div>
       <div class="card"><div class="card-header"><div class="card-title">Поступления (выручка от водителей)</div></div>

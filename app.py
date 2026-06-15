@@ -109,7 +109,8 @@ def fmt(n):
 # ── капитальные/инкассация — НЕ операционные (показываем отдельно) ──
 def _cap_exp(article):
     a = (article or "").lower()
-    return ("главную кассу" in a) or ("закуп" in a) or ("ремонт помещ" in a)
+    return (("главную кассу" in a) or ("закуп" in a) or ("ремонт помещ" in a)
+            or ("приход в кассу" in a))  # перемещения/капитал — не операц. расход
 
 
 def _cap_inc(article):
@@ -141,6 +142,8 @@ def aggregate(ops):
                     cap["Инкассация (в гл. кассу)"] += o["expense"]
                 elif "закуп" in al:
                     cap["Закуп оборудования"] += o["expense"]
+                elif "приход в кассу" in al:
+                    cap["Пополнение кассы"] += o["expense"]
                 else:
                     cap["Ремонт помещения"] += o["expense"]
             else:

@@ -138,7 +138,6 @@
       <div class="card"><div class="card-header"><div class="card-title">{{ t('Месячный итог') }}</div><span class="badge badge-green">из листа «Дашборд»</span></div>
         <div class="card-body"><div class="mini-grid">
           <div class="mini"><div class="l">Выручка</div><div class="v text-green">{{ fmt(data.monthly['Выручка']) }}</div></div>
-          <div class="mini"><div class="l">Чистая прибыль</div><div class="v text-blue">{{ fmt(data.monthly['Чистая прибыль']) }}</div></div>
           <div class="mini"><div class="l">Долг клиентов</div><div class="v text-red">{{ fmt(data.monthly['Сумма долга']) }}</div></div>
           <div class="mini"><div class="l">Всего заказов</div><div class="v">{{ fmt(data.monthly['Всего заказов']) }}</div></div>
           <div class="mini"><div class="l">Выдано</div><div class="v">{{ fmt(data.monthly['Выдано']) }}</div></div>
@@ -170,18 +169,6 @@
         <div class="card"><div class="card-header"><div class="card-title">Расходы по статьям</div><span class="badge badge-green">операционные</span></div><div class="card-body"><canvas id="cExp" height="200"></canvas></div></div>
         <div class="card"><div class="card-header"><div class="card-title">Приход по статьям</div></div><div class="card-body"><canvas id="cInc" height="200"></canvas></div></div>
       </div>
-      {% if data.agg.capital %}
-      <div class="card"><div class="card-header"><div class="card-title">Капитальные и инкассация — справочно</div><span class="badge badge-gold">не входит в расход</span></div>
-        <div class="card-body">
-          <div class="mini-grid">
-          {% for c in data.agg.capital %}
-            <div class="mini"><div class="l">{{ c.name }}</div><div class="v text-gold">{{ fmt(c.sum) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
-          {% endfor %}
-          </div>
-          <div class="op-meta" style="margin-top:10px;padding:0 2px">Эти суммы не входят в операционный «Расход»: инкассация «в главную кассу» — это перенос денег, а закуп/ремонт помещения — капитальные вложения.</div>
-        </div>
-      </div>
-      {% endif %}
       <div class="card"><div class="card-header"><div class="card-title">Все операции за период</div><span class="badge badge-gold">{{ data.agg.count }}</span></div>
         {% if data.recent %}{% for o in data.recent %}
         <div class="op-row"><div class="op-icon {{ 'op-icon-in' if o.in else 'op-icon-out' }}">{{ '↓' if o.in else '↑' }}</div>
@@ -264,8 +251,6 @@
             <div class="mini"><div class="l">Приход (период)</div><div class="v text-green">{{ fmt(c.income) }}</div></div>
             <div class="mini"><div class="l">Расход (период)</div><div class="v text-red">{{ fmt(c.expense) }}</div></div>
             <div class="mini"><div class="l">Чистый поток</div><div class="v {{ 'text-green' if c.net>=0 else 'text-red' }}">{{ fmt(c.net) }}</div></div>
-            <div class="mini"><div class="l">Выручка (месяц)</div><div class="v text-green">{{ fmt(m['Выручка']) }}</div></div>
-            <div class="mini"><div class="l">Прибыль (месяц)</div><div class="v text-blue">{{ fmt(m['Чистая прибыль']) }}</div></div>
             <div class="mini"><div class="l">Долг</div><div class="v text-red">{{ fmt(m['Сумма долга']) }}</div></div>
           </div></div>
         </div>

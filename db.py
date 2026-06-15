@@ -71,31 +71,32 @@ def set_setting(key, value):
         s.commit()
 
 
-def _uid(point, op):
-    raw = f"{point}|{op['date']}|{op['section']}|{op['article']}|{op['desc']}|{op['income']}|{op['expense']}"
+def _uid(point, i, op):
+    raw = f"{point}|{i}|{op['date']}|{op['section']}|{op['article']}|{op['desc']}|{op['income']}|{op['expense']}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
 
 
 def sync_point(point_key, ops):
-    """Добавляет новые операции точки в базу (дубликаты пропускает)."""
-    added = 0
+    """Зеркалит журнал точки в базу: заменяет строки за период, который сейчас
+    есть в таблице (delete+insert), чтобы правки/удаления в таблице не раздували
+    суммы. Старые месяцы вне этого периода остаются в базе как архив."""
+    rows = [o for o in ops if o.get("date") is not None]
+    if not rows:
+        return 0
+    lo = min(o["date"] for o in rows)
+    hi = max(o["date"] for o in rows)
     with Session() as s:
-        existing = {u for (u,) in s.query(Transaction.uid)
-                    .filter(Transaction.point == point_key).all()}
-        for op in ops:
-            if op["date"] is None:
-                continue
-            u = _uid(point_key, op)
-            if u in existing:
-                continue
+        s.query(Transaction).filter(
+            Transaction.point == point_key,
+            Transaction.date >= lo,
+            Transaction.date <= hi).delete(synchronize_session=False)
+        for i, o in enumerate(rows):
             s.add(Transaction(
-                uid=u, point=point_key, date=op["date"],
-                section=op["section"], article=op["article"],
-                descr=op["desc"], income=op["income"], expense=op["expense"]))
-            existing.add(u)
-            added += 1
+                uid=_uid(point_key, i, o), point=point_key, date=o["date"],
+                section=o["section"], article=o["article"],
+                descr=o["desc"], income=o["income"], expense=o["expense"]))
         s.commit()
-    return added
+    return len(rows)
 
 
 def query_ops(point_keys, start=None, end=None):

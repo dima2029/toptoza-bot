@@ -33,6 +33,9 @@ a{color:inherit;text-decoration:none}
 .pill.active{background:var(--em);color:#fff;border-color:var(--em)}
 .pill:hover:not(.active){border-color:var(--em);color:var(--em)}
 .sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+.dateform{display:inline-flex;gap:4px;align-items:center}
+.dinp{padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:11.5px;background:var(--white);color:var(--dark);color-scheme:light}
+[data-theme="dark"] .dinp{color-scheme:dark}
 .content{padding:24px 28px;min-width:0;display:flex;flex-direction:column;gap:16px}
 .card,.kpi-card{min-width:0}
 .content>*{animation:fadeIn .2s ease}

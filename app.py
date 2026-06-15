@@ -80,6 +80,15 @@ def login_required(f):
 # ─────────────────────────── период ───────────────────────────
 def period_bounds(period):
     today = dt.date.today()
+    if period == "custom":   # свой период из полей from/to (формат YYYY-MM-DD)
+        try:
+            f = dt.date.fromisoformat((request.args.get("from") or "").strip())
+            t = dt.date.fromisoformat((request.args.get("to") or "").strip())
+            if f > t:
+                f, t = t, f
+            return f, t, f"{f.strftime('%d.%m.%Y')} – {t.strftime('%d.%m.%Y')}"
+        except Exception:
+            return None, None, "Свой период"
     if period == "today":
         return today, today, "Сегодня"
     if period == "yesterday":
@@ -97,34 +106,71 @@ def fmt(n):
     return f"{n:,}".replace(",", " ")
 
 
+# ── капитальные/инкассация — НЕ операционные (показываем отдельно) ──
+def _cap_exp(article):
+    a = (article or "").lower()
+    return ("главную кассу" in a) or ("закуп" in a) or ("ремонт помещ" in a)
+
+
+def _cap_inc(article):
+    return "приход в кассу" in (article or "").lower()
+
+
+def op_amounts(ops):
+    """Операционные приход/расход (без инкассации и капитальных)."""
+    inc = sum(o["income"] for o in ops if not _cap_inc(o["article"]))
+    exp = sum(o["expense"] for o in ops if not _cap_exp(o["article"]))
+    return inc, exp
+
+
 # ─────────────────────────── агрегации ───────────────────────────
 def aggregate(ops):
-    income = sum(o["income"] for o in ops)
-    expense = sum(o["expense"] for o in ops)
+    income = expense = 0.0
     by_article = {}
     inc_article = {}
     by_day = {}
+    cap = {"Инкассация (в гл. кассу)": 0.0, "Закуп оборудования": 0.0,
+           "Ремонт помещения": 0.0, "Пополнение кассы": 0.0}
     for o in ops:
+        art = o["article"] or "Прочее"
+        al = art.lower()
+        ce, ci = _cap_exp(art), _cap_inc(art)
         if o["expense"]:
-            by_article[o["article"] or "Прочее"] = by_article.get(o["article"] or "Прочее", 0) + o["expense"]
+            if ce:
+                if "главную кассу" in al:
+                    cap["Инкассация (в гл. кассу)"] += o["expense"]
+                elif "закуп" in al:
+                    cap["Закуп оборудования"] += o["expense"]
+                else:
+                    cap["Ремонт помещения"] += o["expense"]
+            else:
+                expense += o["expense"]
+                by_article[art] = by_article.get(art, 0) + o["expense"]
         if o["income"]:
-            inc_article[o["article"] or "Прочее"] = inc_article.get(o["article"] or "Прочее", 0) + o["income"]
+            if ci:
+                cap["Пополнение кассы"] += o["income"]
+            else:
+                income += o["income"]
+                inc_article[art] = inc_article.get(art, 0) + o["income"]
         d = o["date"]
         if d:
             slot = by_day.setdefault(d, {"income": 0, "expense": 0})
-            slot["income"] += o["income"]
-            slot["expense"] += o["expense"]
+            if not ci:
+                slot["income"] += o["income"]
+            if not ce:
+                slot["expense"] += o["expense"]
     days = sorted(by_day)
     arts = sorted(by_article.items(), key=lambda x: -x[1])[:8]
     iarts = sorted(inc_article.items(), key=lambda x: -x[1])[:8]
     return {
         "income": income, "expense": expense, "net": income - expense,
         "count": len(ops),
-        "by_day": [{"date": d.strftime("%d.%m"), "income": round(v["income"]),
-                    "expense": round(v["expense"])} for d, v in
-                   ((d, by_day[d]) for d in days)],
+        "by_day": [{"date": d.strftime("%d.%m"), "income": round(by_day[d]["income"]),
+                    "expense": round(by_day[d]["expense"])} for d in days],
         "by_article": [{"article": a, "sum": round(s)} for a, s in arts],
         "inc_article": [{"article": a, "sum": round(s)} for a, s in iarts],
+        "capital": [{"name": k, "sum": round(v)} for k, v in cap.items() if v],
+        "capital_total": round(sum(cap.values())),
     }
 
 
@@ -245,10 +291,8 @@ def dashboard():
     if section == "compare":
         ps, pend = prev_bounds(period, start, end)
         prev_ops = db.query_ops(point_keys, ps, pend) if ps else []
-        ci = sum(x["income"] for x in ops)
-        ce = sum(x["expense"] for x in ops)
-        pi = sum(x["income"] for x in prev_ops)
-        pex = sum(x["expense"] for x in prev_ops)
+        ci, ce = op_amounts(ops)
+        pi, pex = op_amounts(prev_ops)
 
         def _d(a, b):
             return round((a - b) / b * 100) if b else None
@@ -276,8 +320,7 @@ def dashboard():
     compare = []
     for k in ["km9", "gulbuta"]:
         pops = db.query_ops([k], start, end)
-        inc = sum(o["income"] for o in pops)
-        exp = sum(o["expense"] for o in pops)
+        inc, exp = op_amounts(pops)
         compare.append({"name": POINT_NAME[k], "income": round(inc),
                         "expense": round(exp), "net": round(inc - exp)})
 

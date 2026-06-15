@@ -53,6 +53,12 @@
       </div>
       <div class="filters">
         {{ plink('today','Сегодня') }}{{ plink('yesterday','Вчера') }}{{ plink('7d','7 дней') }}{{ plink('month','Месяц') }}{{ plink('all','Всё') }}
+        <form method="get" class="dateform" title="Свой период">
+          <input type="hidden" name="section" value="{{ S }}"><input type="hidden" name="view" value="{{ data.view }}"><input type="hidden" name="period" value="custom">
+          <input type="date" name="from" value="{{ request.args.get('from','') }}" class="dinp">
+          <input type="date" name="to" value="{{ request.args.get('to','') }}" class="dinp">
+          <button class="pill {{ 'active' if data.period=='custom' else '' }}" type="submit">📅 Период</button>
+        </form>
         <div class="sep"></div>
         {{ vlink('total','Обе') }}{{ vlink('km9','9 км') }}{{ vlink('gulbuta','Гульбута') }}
         <div class="sep"></div>
@@ -160,9 +166,21 @@
       </div>
       <div class="card"><div class="card-header"><div class="card-title">{{ t('Приход и расход по дням') }}</div><span class="badge badge-green">{{ data.plabel }}</span></div><div class="card-body"><canvas id="cBar" height="120"></canvas></div></div>
       <div class="charts-grid">
-        <div class="card"><div class="card-header"><div class="card-title">Расходы по статьям</div></div><div class="card-body"><canvas id="cExp" height="200"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Расходы по статьям</div><span class="badge badge-green">операционные</span></div><div class="card-body"><canvas id="cExp" height="200"></canvas></div></div>
         <div class="card"><div class="card-header"><div class="card-title">Приход по статьям</div></div><div class="card-body"><canvas id="cInc" height="200"></canvas></div></div>
       </div>
+      {% if data.agg.capital %}
+      <div class="card"><div class="card-header"><div class="card-title">Капитальные и инкассация — справочно</div><span class="badge badge-gold">не входит в расход</span></div>
+        <div class="card-body">
+          <div class="mini-grid">
+          {% for c in data.agg.capital %}
+            <div class="mini"><div class="l">{{ c.name }}</div><div class="v text-gold">{{ fmt(c.sum) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
+          {% endfor %}
+          </div>
+          <div class="op-meta" style="margin-top:10px;padding:0 2px">Эти суммы не входят в операционный «Расход»: инкассация «в главную кассу» — это перенос денег, а закуп/ремонт помещения — капитальные вложения.</div>
+        </div>
+      </div>
+      {% endif %}
       <div class="card"><div class="card-header"><div class="card-title">Все операции за период</div><span class="badge badge-gold">{{ data.agg.count }}</span></div>
         {% if data.recent %}{% for o in data.recent %}
         <div class="op-row"><div class="op-icon {{ 'op-icon-in' if o.in else 'op-icon-out' }}">{{ '↓' if o.in else '↑' }}</div>

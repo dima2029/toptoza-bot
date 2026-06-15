@@ -62,6 +62,7 @@
         <div class="sep"></div>
         {{ vlink('total','Обе') }}{{ vlink('km9','9 км') }}{{ vlink('gulbuta','Гульбута') }}
         <div class="sep"></div>
+        <a class="tbtn" href="?section={{ S }}&period={{ data.period }}&view={{ data.view }}&from={{ request.args.get('from','') }}&to={{ request.args.get('to','') }}&refresh=1" title="Забрать свежие данные из таблиц">🔄 Обновить</a>
         <a class="tbtn" href="/lang/{{ 'ru' if lang=='tj' else 'tj' }}" title="Забон / Язык">{{ 'РУ' if lang=='tj' else 'ТҶ' }}</a>
         <a class="tbtn" href="/export.csv?period={{ data.period }}&view={{ data.view }}" title="Скачать Excel/CSV">⬇ CSV</a>
         <button class="tbtn" onclick="window.print()" title="Печать / PDF">🖨</button>

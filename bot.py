@@ -322,7 +322,7 @@ def build_daily_report():
     for p in sheets.POINTS:
         try:
             for o in sheets.read_journal(p):
-                if o["date"] == today:
+                if o["date"] == today and not insights._is_cap(o):
                     day_in += o["income"]
                     day_exp += o["expense"]
         except Exception as e:
@@ -512,13 +512,13 @@ async def business_alerts(context: ContextTypes.DEFAULT_TYPE):
     try:
         today = dt.date.today()
         keys = ["km9", "gulbuta"]
-        day_ops = db.query_ops(keys, today, today)
+        day_ops = insights.operational(db.query_ops(keys, today, today))
         day_exp = sum(o["expense"] for o in day_ops)
-        hist = db.query_ops(keys, today - dt.timedelta(days=30),
-                            today - dt.timedelta(days=1))
+        hist = insights.operational(db.query_ops(keys, today - dt.timedelta(days=30),
+                                                 today - dt.timedelta(days=1)))
         hist_days = {o["date"] for o in hist if o["date"]}
         avg_exp = (sum(o["expense"] for o in hist) / len(hist_days)) if hist_days else 0
-        mon = db.query_ops(keys, today.replace(day=1), today)
+        mon = insights.operational(db.query_ops(keys, today.replace(day=1), today))
         net = sum(o["income"] for o in mon) - sum(o["expense"] for o in mon)
         debt = 0
         try:
@@ -725,8 +725,9 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def build_period_report(title, start, end):
     ops = db.query_ops(["km9", "gulbuta"], start, end)
-    inc = sum(o["income"] for o in ops)
-    exp = sum(o["expense"] for o in ops)
+    op = insights.operational(ops)
+    inc = sum(o["income"] for o in op)
+    exp = sum(o["expense"] for o in op)
     lines = [f"🗓 *{title}*", "",
              f"• Приход: {fmt_money(inc)} сом.",
              f"• Расход: {fmt_money(exp)} сом.",

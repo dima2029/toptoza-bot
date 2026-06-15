@@ -227,9 +227,8 @@ def compute_health(point_keys):
     ps, pe = prev_month_range(today)
     cur = db.query_ops(point_keys, ms, today)
     prev = db.query_ops(point_keys, ps, pe)
-    cur_inc = sum(o["income"] for o in cur)
-    cur_exp = sum(o["expense"] for o in cur)
-    prev_inc = sum(o["income"] for o in prev)
+    cur_inc, cur_exp = op_amounts(cur)       # операционные (без инкассации/капитала)
+    prev_inc, _ = op_amounts(prev)
     net = cur_inc - cur_exp
     dim = _cal.monthrange(today.year, today.month)[1]
     forecast = round(cur_inc / today.day * dim) if today.day else 0

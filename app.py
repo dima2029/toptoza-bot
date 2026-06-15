@@ -352,26 +352,22 @@ def dashboard():
             g["cnt"] += 1
         debtors = sorted(byc.values(), key=lambda x: -x["sum"])
 
-        # (name, count_field, unit, sum_field, price_field)
+        # (name, volume_field, unit, sum_field, rate) — ставки фиксированные:
+        # ковёр 12 сом/м², одеяло 50 сом/шт, шторы 30 сом/кг, курпача 70 сом/шт.
+        # Объём берём из реальных колонок листа, сумму — из *_sum (уже посчитана).
         svc_defs = [
-            ("Ковёр",   "carpet_cnt",  "м²",  "carpet_sum",  "carpet_price"),
-            ("Одеяло",  "blanket_cnt", "шт",  "blanket_sum", "blanket_price"),
-            ("Шторы",   "curtain_kg",  "кг",  "curtain_sum", "curtain_price"),
-            ("Курпача", "quilt_cnt",   "шт",  "quilt_sum",   "quilt_price"),
+            ("Ковёр",   "carpet_area", "м²", "carpet_sum",  12),
+            ("Одеяло",  "blanket_cnt", "шт", "blanket_sum", 50),
+            ("Шторы",   "curtain_kg",  "кг", "curtain_sum", 30),
+            ("Курпача", "quilt_cnt",   "шт", "quilt_sum",   70),
         ]
         services = []
-        for nm, cntf, unit, sumf, pricef in svc_defs:
-            svc_sum = round(sum(o[sumf] for o in allo))
-            prices = [o[pricef] for o in allo if o.get(pricef, 0) > 0]
-            avg_price = round(sum(prices) / len(prices)) if prices else 0
-            # объём: для ковра — м² = сумма ÷ цена; для остальных — количество штук/кг
-            if nm == "Ковёр":
-                vol = round(svc_sum / avg_price, 1) if avg_price else 0
-            else:
-                vol = round(sum(o[cntf] for o in allo), 1)
+        for nm, volf, unit, sumf, rate in svc_defs:
+            svc_sum = round(sum(o.get(sumf, 0) for o in allo))
+            vol = round(sum(o.get(volf, 0) for o in allo), 1)
             services.append({
                 "name": nm, "unit": unit,
-                "vol": vol, "sum": svc_sum, "price": avg_price,
+                "vol": vol, "sum": svc_sum, "price": rate,
             })
         tot_svc = sum(x["sum"] for x in services) or 1
         for x in services:

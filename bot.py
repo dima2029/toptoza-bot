@@ -26,7 +26,8 @@ import logging
 import datetime as dt
 
 import gspread
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import (Update, InlineKeyboardButton, InlineKeyboardMarkup,
+                      BotCommand, MenuButtonCommands)
 from telegram.error import Conflict
 from telegram.ext import (Application, CommandHandler, CallbackQueryHandler,
                           ContextTypes)
@@ -770,7 +771,23 @@ def main():
             "Сначала заполните в разделе НАСТРОЙКИ: " + ", ".join(problems)
         )
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    async def _setup_menu(application):
+        """Регистрирует команды бота и синюю кнопку «Меню» у поля ввода."""
+        try:
+            await application.bot.set_my_commands([
+                BotCommand("menu", "📋 Меню"),
+                BotCommand("svodka", "📊 Сводка по обеим точкам"),
+                BotCommand("km9", "📍 Отчёт 9 км"),
+                BotCommand("gulbuta", "📍 Отчёт Гульбута"),
+                BotCommand("dashboard", "🌐 Открыть сайт"),
+                BotCommand("nastroiki", "⚙️ Настройки"),
+            ])
+            await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
+            log.info("Меню бота и команды зарегистрированы")
+        except Exception as e:
+            log.warning("set menu failed: %s", e)
+
+    app = Application.builder().token(BOT_TOKEN).post_init(_setup_menu).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", start))
     app.add_handler(CommandHandler("myid", myid))

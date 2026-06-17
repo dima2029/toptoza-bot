@@ -57,18 +57,32 @@ class Employee(Base):
     tseh = Column(String(8), default="")        # «1» / «2» / ""
     driver_code = Column(String(16), default="")  # МО/АМ/ОУ/НБ (для водителей)
     salary = Column(Float, default=0.0)         # оклад/мес (для фиксов)
+    avans = Column(Float, default=0.0)          # ручной аванс (доп. к журналу)
     active = Column(Integer, default=1)
+
+
+def _ensure_column(table, col, coltype):
+    """Лёгкая миграция: добавить колонку, если её ещё нет (Postgres/SQLite)."""
+    from sqlalchemy import inspect, text
+    try:
+        cols = [c["name"] for c in inspect(engine).get_columns(table)]
+        if col not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {coltype} DEFAULT 0"))
+    except Exception:
+        pass
 
 
 def init_db():
     Base.metadata.create_all(engine)
+    _ensure_column("employees", "avans", "FLOAT")
 
 
 # ───────────────────────── сотрудники (CRUD) ─────────────────────────
 def _emp_dict(e):
     return {"id": e.id, "point": e.point, "name": e.name, "role": e.role,
             "tseh": e.tseh or "", "driver_code": e.driver_code or "",
-            "salary": e.salary or 0.0, "active": bool(e.active)}
+            "salary": e.salary or 0.0, "avans": e.avans or 0.0, "active": bool(e.active)}
 
 
 def list_employees(point_keys=None, only_active=False):
@@ -82,10 +96,11 @@ def list_employees(point_keys=None, only_active=False):
         return [_emp_dict(e) for e in q.all()]
 
 
-def add_employee(point, name, role, tseh="", driver_code="", salary=0.0, active=1):
+def add_employee(point, name, role, tseh="", driver_code="", salary=0.0, avans=0.0, active=1):
     with Session() as s:
         e = Employee(point=point, name=name.strip(), role=role, tseh=tseh,
-                     driver_code=driver_code, salary=float(salary or 0), active=int(active))
+                     driver_code=driver_code, salary=float(salary or 0),
+                     avans=float(avans or 0), active=int(active))
         s.add(e)
         s.commit()
         return e.id
@@ -97,7 +112,7 @@ def update_employee(emp_id, **fields):
         if not e:
             return False
         for k, v in fields.items():
-            if k == "salary":
+            if k in ("salary", "avans"):
                 v = float(v or 0)
             elif k == "active":
                 v = int(v)

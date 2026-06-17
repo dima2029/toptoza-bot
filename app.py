@@ -282,6 +282,11 @@ def _driver_code(s):
     return m.group(1).upper() if m else ""
 
 
+def _is_zp(article):
+    a = (article or "").lower()
+    return ("зп" in a) or ("зарплат" in a) or ("аванс" in a) or ("оклад" in a)
+
+
 def _vol_pay(orders, rate):
     return sum(o.get("carpet_area", 0) * rate["carpet_area"]
               + o.get("blanket_cnt", 0) * rate["blanket_cnt"]
@@ -306,6 +311,28 @@ def compute_salary(point_keys, start, end):
     moy_pool = {k: _vol_pay(orders_by_point[k], MOY_RATE) for k in point_keys}
     moy_cnt = {k: sum(1 for e in emps if e["active"] and e["role"] == "moyshik"
                       and e["point"] == k) for k in point_keys}
+
+    # авансы/выплаты из журнала (статья ЗП) — матчим по имени, для водителей по коду
+    avans_auto = {e["id"]: 0.0 for e in emps}
+    zp_ops = [o for o in db.query_ops(point_keys, start, end)
+              if o["expense"] and _is_zp(o.get("article"))]
+    unmatched_sum, unmatched_cnt = 0.0, 0
+    for o in zp_ops:
+        text = (((o.get("desc") or "") + " " + (o.get("article") or "")).lower())
+        hit = None
+        for e in emps:
+            if e["point"] != o["point"]:
+                continue
+            if e["role"] == "voditel" and e["driver_code"]:
+                if re.search(r"(?<![а-яёa-z])" + re.escape(e["driver_code"].lower()) + r"(?![а-яёa-z])", text):
+                    hit = e; break
+            elif e["name"] and e["name"].lower() in text:
+                hit = e; break
+        if hit:
+            avans_auto[hit["id"]] += o["expense"]
+        else:
+            unmatched_sum += o["expense"]; unmatched_cnt += 1
+
     rows = []
     for e in emps:
         earned, detail = 0.0, ""
@@ -323,14 +350,20 @@ def compute_salary(point_keys, start, end):
         else:
             earned = e["salary"]
             detail = "оклад/мес"
+        avans = avans_auto.get(e["id"], 0.0) + (e["avans"] or 0.0)
         rows.append({**e, "role_label": ROLE_LABEL.get(e["role"], e["role"]),
-                     "earned": round(earned), "detail": detail})
+                     "earned": round(earned), "avans": round(avans),
+                     "avans_jrnl": round(avans_auto.get(e["id"], 0.0)),
+                     "to_pay": round(earned - avans), "detail": detail})
     rows.sort(key=lambda r: (not r["active"], -r["earned"]))
-    sdel = sum(r["earned"] for r in rows if r["active"] and r["role"] in ("moyshik", "voditel"))
-    fix = sum(r["earned"] for r in rows if r["active"] and r["role"] in ("operator", "povar", "admin"))
+    act = [r for r in rows if r["active"]]
+    sdel = sum(r["earned"] for r in act if r["role"] in ("moyshik", "voditel"))
+    fix = sum(r["earned"] for r in act if r["role"] in ("operator", "povar", "admin"))
     return {
         "rows": rows, "total": round(sdel + fix), "sdel": round(sdel), "fix": round(fix),
-        "count": sum(1 for r in rows if r["active"]),
+        "avans": round(sum(r["avans"] for r in act)),
+        "to_pay": round(sum(r["to_pay"] for r in act)),
+        "count": len(act), "unmatched_sum": round(unmatched_sum), "unmatched_cnt": unmatched_cnt,
     }
 
 
@@ -349,6 +382,7 @@ def emp_add():
         db.add_employee(point=f.get("point", "km9"), name=f.get("name", ""),
                         role=f.get("role", "moyshik"), tseh=f.get("tseh", ""),
                         driver_code=f.get("driver_code", ""), salary=f.get("salary") or 0,
+                        avans=f.get("avans") or 0,
                         active=1 if f.get("active", "1") == "1" else 0)
     return redirect(_salary_back())
 
@@ -360,6 +394,7 @@ def emp_edit(emp_id):
     db.update_employee(emp_id, point=f.get("point", "km9"), name=f.get("name", ""),
                        role=f.get("role", "moyshik"), tseh=f.get("tseh", ""),
                        driver_code=f.get("driver_code", ""), salary=f.get("salary") or 0,
+                       avans=f.get("avans") or 0,
                        active=1 if f.get("active", "1") == "1" else 0)
     return redirect(_salary_back())
 

@@ -8,6 +8,7 @@
 """
 import os
 import io
+import re
 import csv
 import time
 import calendar as _cal
@@ -267,6 +268,109 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ───────────────────────── зарплата сотрудников ─────────────────────────
+# Сдельные ставки (сом за единицу). Разница только в шторах: водитель 3, мойщик 5.
+DRV_RATE = {"carpet_area": 2, "blanket_cnt": 5, "curtain_kg": 3, "quilt_cnt": 10}
+MOY_RATE = {"carpet_area": 2, "blanket_cnt": 5, "curtain_kg": 5, "quilt_cnt": 10}
+ROLE_LABEL = {"moyshik": "Мойщик", "voditel": "Водитель",
+              "operator": "Оператор", "povar": "Повар", "admin": "Администратор"}
+
+
+def _driver_code(s):
+    """Код водителя из даты заказа: «29.05МО» → «МО»."""
+    m = re.search(r"([А-Яа-яЁё]+)\s*$", s or "")
+    return m.group(1).upper() if m else ""
+
+
+def _vol_pay(orders, rate):
+    return sum(o.get("carpet_area", 0) * rate["carpet_area"]
+              + o.get("blanket_cnt", 0) * rate["blanket_cnt"]
+              + o.get("curtain_kg", 0) * rate["curtain_kg"]
+              + o.get("quilt_cnt", 0) * rate["quilt_cnt"] for o in orders)
+
+
+def compute_salary(point_keys, start, end):
+    db.init_db()
+    emps = db.list_employees(point_keys)
+    orders_by_point = {}
+    for k in point_keys:
+        lst = []
+        for o in _orders_cache.get(k, []):
+            if start:
+                d = o.get("date")
+                if d is None or d < start or d > end:
+                    continue
+            lst.append(o)
+        orders_by_point[k] = lst
+    # котёл мойщиков (делится поровну) и их число — по каждой точке
+    moy_pool = {k: _vol_pay(orders_by_point[k], MOY_RATE) for k in point_keys}
+    moy_cnt = {k: sum(1 for e in emps if e["active"] and e["role"] == "moyshik"
+                      and e["point"] == k) for k in point_keys}
+    rows = []
+    for e in emps:
+        earned, detail = 0.0, ""
+        pt = e["point"]
+        pords = orders_by_point.get(pt, [])
+        if e["role"] == "voditel":
+            code = (e["driver_code"] or "").upper()
+            myo = [o for o in pords if _driver_code(o.get("date_received")) == code] if code else []
+            earned = _vol_pay(myo, DRV_RATE)
+            detail = f"{len(myo)} заказов"
+        elif e["role"] == "moyshik":
+            cnt = moy_cnt.get(pt, 0)
+            earned = moy_pool.get(pt, 0) / cnt if cnt else 0
+            detail = f"котёл ÷ {cnt}" if cnt else "нет мойщиков"
+        else:
+            earned = e["salary"]
+            detail = "оклад/мес"
+        rows.append({**e, "role_label": ROLE_LABEL.get(e["role"], e["role"]),
+                     "earned": round(earned), "detail": detail})
+    rows.sort(key=lambda r: (not r["active"], -r["earned"]))
+    sdel = sum(r["earned"] for r in rows if r["active"] and r["role"] in ("moyshik", "voditel"))
+    fix = sum(r["earned"] for r in rows if r["active"] and r["role"] in ("operator", "povar", "admin"))
+    return {
+        "rows": rows, "total": round(sdel + fix), "sdel": round(sdel), "fix": round(fix),
+        "count": sum(1 for r in rows if r["active"]),
+    }
+
+
+def _salary_back():
+    period = request.form.get("period", "month")
+    view = request.form.get("view", "total")
+    return url_for("dashboard") + f"?section=salary&period={period}&view={view}"
+
+
+@app.route("/employees/add", methods=["POST"])
+@login_required
+def emp_add():
+    db.init_db()
+    f = request.form
+    if (f.get("name") or "").strip():
+        db.add_employee(point=f.get("point", "km9"), name=f.get("name", ""),
+                        role=f.get("role", "moyshik"), tseh=f.get("tseh", ""),
+                        driver_code=f.get("driver_code", ""), salary=f.get("salary") or 0,
+                        active=1 if f.get("active", "1") == "1" else 0)
+    return redirect(_salary_back())
+
+
+@app.route("/employees/edit/<int:emp_id>", methods=["POST"])
+@login_required
+def emp_edit(emp_id):
+    f = request.form
+    db.update_employee(emp_id, point=f.get("point", "km9"), name=f.get("name", ""),
+                       role=f.get("role", "moyshik"), tseh=f.get("tseh", ""),
+                       driver_code=f.get("driver_code", ""), salary=f.get("salary") or 0,
+                       active=1 if f.get("active", "1") == "1" else 0)
+    return redirect(_salary_back())
+
+
+@app.route("/employees/delete/<int:emp_id>", methods=["POST"])
+@login_required
+def emp_del(emp_id):
+    db.delete_employee(emp_id)
+    return redirect(_salary_back())
+
+
 @app.route("/")
 @login_required
 def dashboard():
@@ -404,6 +508,8 @@ def dashboard():
                          "sum": round(d["sum"]), "cnt": d["cnt"]} for d in debtors[:60]],
         }
 
+    salary_data = compute_salary(point_keys, start, end) if section == "salary" else None
+
     # месячный итог — из кэша (обновляется в ensure_synced раз в 2 мин)
     monthly_by_point = {k: _monthly_cache.get(k, dict(ZERO_MONTHLY))
                         for k in ["km9", "gulbuta"]}
@@ -416,7 +522,7 @@ def dashboard():
         "agg": agg, "recent": recent, "compare": compare,
         "monthly": monthly, "monthly_by_point": monthly_by_point,
         "health": health, "insights": insights_data,
-        "comparison": comparison, "orders_data": orders_data, "q": q,
+        "comparison": comparison, "orders_data": orders_data, "salary": salary_data, "q": q,
         "period": period, "view": view, "section": section, "plabel": plabel,
         "range": (f"{dmin.strftime('%d.%m.%Y')} — {dmax.strftime('%d.%m.%Y')}"
                   if dmin and dmax else "нет данных"),

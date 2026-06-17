@@ -48,8 +48,73 @@ class Setting(Base):
     value = Column(String(256))
 
 
+class Employee(Base):
+    __tablename__ = "employees"
+    id = Column(Integer, primary_key=True)
+    point = Column(String(32), index=True)      # km9 / gulbuta
+    name = Column(String(128))
+    role = Column(String(32))                   # moyshik/voditel/operator/povar/admin
+    tseh = Column(String(8), default="")        # «1» / «2» / ""
+    driver_code = Column(String(16), default="")  # МО/АМ/ОУ/НБ (для водителей)
+    salary = Column(Float, default=0.0)         # оклад/мес (для фиксов)
+    active = Column(Integer, default=1)
+
+
 def init_db():
     Base.metadata.create_all(engine)
+
+
+# ───────────────────────── сотрудники (CRUD) ─────────────────────────
+def _emp_dict(e):
+    return {"id": e.id, "point": e.point, "name": e.name, "role": e.role,
+            "tseh": e.tseh or "", "driver_code": e.driver_code or "",
+            "salary": e.salary or 0.0, "active": bool(e.active)}
+
+
+def list_employees(point_keys=None, only_active=False):
+    with Session() as s:
+        q = s.query(Employee)
+        if point_keys:
+            q = q.filter(Employee.point.in_(point_keys))
+        if only_active:
+            q = q.filter(Employee.active == 1)
+        q = q.order_by(Employee.point, Employee.role, Employee.name)
+        return [_emp_dict(e) for e in q.all()]
+
+
+def add_employee(point, name, role, tseh="", driver_code="", salary=0.0, active=1):
+    with Session() as s:
+        e = Employee(point=point, name=name.strip(), role=role, tseh=tseh,
+                     driver_code=driver_code, salary=float(salary or 0), active=int(active))
+        s.add(e)
+        s.commit()
+        return e.id
+
+
+def update_employee(emp_id, **fields):
+    with Session() as s:
+        e = s.get(Employee, emp_id)
+        if not e:
+            return False
+        for k, v in fields.items():
+            if k == "salary":
+                v = float(v or 0)
+            elif k == "active":
+                v = int(v)
+            elif k == "name":
+                v = (v or "").strip()
+            setattr(e, k, v)
+        s.commit()
+        return True
+
+
+def delete_employee(emp_id):
+    with Session() as s:
+        e = s.get(Employee, emp_id)
+        if e:
+            s.delete(e)
+            s.commit()
+        return bool(e)
 
 
 def get_setting(key, default=None):

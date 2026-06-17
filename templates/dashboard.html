@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ТОП-ТОЗА · {{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[data.section] }}</title>
+<title>ТОП-ТОЗА · {{ {'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','salary':'Зарплата','compare':'Сравнение'}[data.section] }}</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#00B956">
 <meta name="mobile-web-app-capable" content="yes">
@@ -37,6 +37,7 @@
     <div class="nav-section">{{ t('Аналитика') }}</div>
     {{ nlink('points','📍','Точки') }}
     {{ nlink('drivers','🚗','Водители') }}
+    {{ nlink('salary','💰','Зарплата') }}
     {{ nlink('compare','⚖️','Сравнение') }}
     <div class="sidebar-footer">
       <div class="avatar">Д</div>
@@ -49,7 +50,7 @@
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:10px;min-width:0">
         <button class="burger" onclick="document.body.classList.toggle('nav-open')" title="Меню">☰</button>
-        <div class="topbar-title">{{ t({'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[S]) }}<small>{{ t(data.plabel) }} · {{ t({'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view]) }}</small></div>
+        <div class="topbar-title">{{ t({'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','salary':'Зарплата','compare':'Сравнение'}[S]) }}<small>{{ t(data.plabel) }} · {{ t({'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view]) }}</small></div>
       </div>
       <div class="filters">
         {{ plink('today','Сегодня') }}{{ plink('yesterday','Вчера') }}{{ plink('7d','7 дней') }}{{ plink('month','Месяц') }}{{ plink('all','Всё') }}
@@ -72,7 +73,7 @@
 
     <div class="content">
       <div class="print-only print-header">
-        <b>ТОП-ТОЗА</b> — {{ t({'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','compare':'Сравнение'}[S]) }}
+        <b>ТОП-ТОЗА</b> — {{ t({'summary':'Сводка','money':'Деньги','orders':'Заказы','debts':'Долги','points':'Точки','drivers':'Водители','salary':'Зарплата','compare':'Сравнение'}[S]) }}
         · {{ t(data.plabel) }} · {{ t({'total':'обе точки','km9':'9 км','gulbuta':'Гульбута'}[data.view]) }}
         <div>{{ t('Отчёт сформирован') }}: {{ today_str }}</div>
       </div>
@@ -275,6 +276,68 @@
         {% endfor %}{% else %}<div class="empty">За этот период поступлений нет.</div>{% endif %}
       </div>
       <div class="card"><div class="card-body"><div class="empty">Разбивка по конкретным водителям (имя, рейсы, ГСМ, ЗП) появится, когда заведём лист с водителями в нужном формате.</div></div></div>
+
+    {# ───────────── ЗАРПЛАТА ───────────── #}
+    {% elif S == 'salary' %}
+      {% set sd = data.salary %}
+      {% set ROLES = [('moyshik','Мойщик'),('voditel','Водитель'),('operator','Оператор'),('povar','Повар'),('admin','Администратор')] %}
+      {% set CODES = ['МО','АМ','ОУ','НБ'] %}
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Фонд оплаты (всего)</div><div class="kpi-value">{{ fmt(sd.total) }} <span class="kpi-cur">сом.</span></div><div class="kpi-sub">{{ data.plabel }}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Сдельщики (мойщики+водители)</div><div class="kpi-value text-green">{{ fmt(sd.sdel) }} <span class="kpi-cur">сом.</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">Фиксы (оклады)</div><div class="kpi-value text-blue">{{ fmt(sd.fix) }} <span class="kpi-cur">сом.</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">Сотрудников</div><div class="kpi-value">{{ fmt(sd.count) }}</div></div>
+      </div>
+
+      <div class="card"><div class="card-header"><div class="card-title">Кто сколько заработал</div><span class="badge badge-green">{{ data.plabel }}</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Сотрудник</th><th>Роль</th><th>Цех</th>{% if data.view=='total' %}<th>Точка</th>{% endif %}<th>Расчёт</th><th>Заработал</th></tr></thead>
+          <tbody>
+          {% for e in sd.rows %}
+            <tr {{ 'style=opacity:.45' if not e.active }}>
+              <td><b>{{ e.name }}</b>{{ ' · '+e.driver_code if e.driver_code }}</td>
+              <td>{{ e.role_label }}</td><td>{{ e.tseh }}</td>
+              {% if data.view=='total' %}<td>{{ POINT_NAME.get(e.point,'') }}</td>{% endif %}
+              <td class="hide-mobile" style="color:var(--muted)">{{ e.detail }}</td>
+              <td><b class="text-green">{{ fmt(e.earned) }}</b> сом.</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6"><div class="empty">Пока нет сотрудников. Добавь ниже ↓</div></td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="card no-print"><div class="card-header"><div class="card-title">➕ Добавить / изменить сотрудников</div></div>
+        <div class="card-body">
+          <form method="post" action="/employees/add" class="emp-form emp-form-add">
+            <input type="hidden" name="period" value="{{ data.period }}"><input type="hidden" name="view" value="{{ data.view }}">
+            <input name="name" placeholder="Имя" required>
+            <select name="role">{% for v,l in ROLES %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+            <select name="point"><option value="km9">9 км</option><option value="gulbuta">Гульбута</option></select>
+            <select name="tseh"><option value="">цех —</option><option value="1">цех 1</option><option value="2">цех 2</option></select>
+            <select name="driver_code"><option value="">код —</option>{% for c in CODES %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select>
+            <input name="salary" type="number" step="any" placeholder="оклад/мес" style="width:110px">
+            <button class="pill active" type="submit">Добавить</button>
+          </form>
+          <div class="emp-hint">Мойщик/водитель — оклад не нужен (считается сдельно). Оператор/повар/админ — впиши оклад. Водителю выбери код машины (МО/АМ/ОУ/НБ).</div>
+
+          {% for e in sd.rows %}
+          <form method="post" action="/employees/edit/{{ e.id }}" class="emp-form">
+            <input type="hidden" name="period" value="{{ data.period }}"><input type="hidden" name="view" value="{{ data.view }}">
+            <input name="name" value="{{ e.name }}" required>
+            <select name="role">{% for v,l in ROLES %}<option value="{{ v }}" {{ 'selected' if e.role==v }}>{{ l }}</option>{% endfor %}</select>
+            <select name="point"><option value="km9" {{ 'selected' if e.point=='km9' }}>9 км</option><option value="gulbuta" {{ 'selected' if e.point=='gulbuta' }}>Гульбута</option></select>
+            <select name="tseh"><option value="">цех —</option><option value="1" {{ 'selected' if e.tseh=='1' }}>цех 1</option><option value="2" {{ 'selected' if e.tseh=='2' }}>цех 2</option></select>
+            <select name="driver_code"><option value="">код —</option>{% for c in CODES %}<option value="{{ c }}" {{ 'selected' if e.driver_code==c }}>{{ c }}</option>{% endfor %}</select>
+            <input name="salary" type="number" step="any" value="{{ e.salary|round|int if e.salary else '' }}" placeholder="оклад" style="width:110px">
+            <label class="emp-act"><input type="checkbox" name="active" value="1" {{ 'checked' if e.active }}> работает</label>
+            <button class="pill" type="submit" title="Сохранить">💾</button>
+            <button class="pill pill-del" type="submit" formaction="/employees/delete/{{ e.id }}" onclick="return confirm('Удалить {{ e.name }}?')" title="Удалить">🗑</button>
+          </form>
+          {% endfor %}
+        </div>
+      </div>
 
     {# ───────────── СРАВНЕНИЕ ───────────── #}
     {% elif S == 'compare' %}

@@ -153,8 +153,16 @@ tbody tr:hover td{background:#F8FAFC}
 /* печать в PDF */
 .print-only{display:none}
 .print-header b{font-size:18px}.print-header div{font-size:11px;color:#666;margin-top:3px}
+/* формы сотрудников (зарплата) */
+.emp-form{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--border)}
+.emp-form-add{border-bottom:2px solid var(--border);margin-bottom:4px;padding-bottom:12px}
+.emp-form input[type=text],.emp-form input:not([type]),.emp-form input[name=name],.emp-form input[name=salary],.emp-form select{padding:6px 9px;border:1px solid var(--border);border-radius:8px;background:var(--white);color:var(--dark);font-size:12.5px}
+.emp-form input[name=name]{min-width:150px;flex:1}
+.emp-act{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted)}
+.emp-hint{font-size:11.5px;color:var(--muted);margin:8px 0 14px}
+.pill-del{color:#e5484d;border-color:#e5484d33}
 @media print{
-  .sidebar,.topbar,.tbtn,.search,.burger,.nav-overlay{display:none !important}
+  .sidebar,.topbar,.tbtn,.search,.burger,.nav-overlay,.no-print{display:none !important}
   .main{margin-left:0 !important}
   .print-only{display:block;margin-bottom:14px}
   .card,.kpi-card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}

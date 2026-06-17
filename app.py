@@ -366,9 +366,11 @@ def compute_salary(point_keys, start, end):
         else:
             earned = e["salary"]
             detail = "оклад/мес"
-        avans = avans_auto.get(e["id"], 0.0) + (e["avans"] or 0.0)
+        avans_manual = e["avans"] or 0.0
+        avans = avans_auto.get(e["id"], 0.0) + avans_manual
         rows.append({**e, "role_label": ROLE_LABEL.get(e["role"], e["role"]),
                      "earned": round(earned), "avans": round(avans),
+                     "avans_manual": round(avans_manual),
                      "avans_jrnl": round(avans_auto.get(e["id"], 0.0)),
                      "to_pay": round(earned - avans), "detail": detail})
     rows.sort(key=lambda r: (not r["active"], -r["earned"]))

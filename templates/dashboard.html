@@ -335,7 +335,7 @@
             <select name="point"><option value="km9" {{ 'selected' if e.point=='km9' }}>9 км</option><option value="gulbuta" {{ 'selected' if e.point=='gulbuta' }}>Гульбута</option></select>
             <select name="driver_code"><option value="">код —</option>{% for c in CODES %}<option value="{{ c }}" {{ 'selected' if e.driver_code==c }}>{{ c }}</option>{% endfor %}</select>
             <input name="salary" type="number" step="any" value="{{ e.salary|round|int if e.salary else '' }}" placeholder="оклад" style="width:100px">
-            <input name="avans" type="number" step="any" value="{{ e.avans|round|int if e.avans else '' }}" placeholder="аванс" style="width:90px" title="ручной аванс (доп. к журналу)">
+            <input name="avans" type="number" step="any" value="{{ e.avans_manual if e.avans_manual else '' }}" placeholder="аванс вручную" style="width:110px" title="ручной аванс (доп. к журналу, авто-аванс сюда не входит)">
             <label class="emp-act"><input type="checkbox" name="active" value="1" {{ 'checked' if e.active }}> работает</label>
             <button class="pill" type="submit" title="Сохранить">💾</button>
             <button class="pill pill-del" type="submit" formaction="/employees/delete/{{ e.id }}" onclick="return confirm('Удалить {{ e.name }}?')" title="Удалить">🗑</button>

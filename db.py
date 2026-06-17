@@ -58,31 +58,41 @@ class Employee(Base):
     driver_code = Column(String(16), default="")  # МО/АМ/ОУ/НБ (для водителей)
     salary = Column(Float, default=0.0)         # оклад/мес (для фиксов)
     avans = Column(Float, default=0.0)          # ручной аванс (доп. к журналу)
+    days_off = Column(String(4000), default="")  # выходные: ISO-даты через запятую
     active = Column(Integer, default=1)
 
 
-def _ensure_column(table, col, coltype):
+def _ensure_column(table, col, coltype, default="0"):
     """Лёгкая миграция: добавить колонку, если её ещё нет (Postgres/SQLite)."""
     from sqlalchemy import inspect, text
     try:
         cols = [c["name"] for c in inspect(engine).get_columns(table)]
         if col not in cols:
             with engine.begin() as conn:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {coltype} DEFAULT 0"))
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {coltype} DEFAULT {default}"))
     except Exception:
         pass
 
 
 def init_db():
     Base.metadata.create_all(engine)
-    _ensure_column("employees", "avans", "FLOAT")
+    _ensure_column("employees", "avans", "FLOAT", "0")
+    _ensure_column("employees", "days_off", "TEXT", "''")
 
 
 # ───────────────────────── сотрудники (CRUD) ─────────────────────────
 def _emp_dict(e):
     return {"id": e.id, "point": e.point, "name": e.name, "role": e.role,
             "tseh": e.tseh or "", "driver_code": e.driver_code or "",
-            "salary": e.salary or 0.0, "avans": e.avans or 0.0, "active": bool(e.active)}
+            "salary": e.salary or 0.0, "avans": e.avans or 0.0,
+            "off": [d for d in (e.days_off or "").split(",") if d.strip() and "-" in d],
+            "active": bool(e.active)}
+
+
+def get_employee(emp_id):
+    with Session() as s:
+        e = s.get(Employee, emp_id)
+        return _emp_dict(e) if e else None
 
 
 def list_employees(point_keys=None, only_active=False):

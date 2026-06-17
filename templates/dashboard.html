@@ -340,6 +340,23 @@
             <button class="pill" type="submit" title="Сохранить">💾</button>
             <button class="pill pill-del" type="submit" formaction="/employees/delete/{{ e.id }}" onclick="return confirm('Удалить {{ e.name }}?')" title="Удалить">🗑</button>
           </form>
+          {% if e.role=='moyshik' %}
+          <details class="dayoff">
+            <summary>📅 Выходные {{ e.name }}{{ ' · '+(e.off|length|string)+' дн.' if e.off }}</summary>
+            {% if sd.days %}
+            <form method="post" action="/employees/dayoff/{{ e.id }}">
+              <input type="hidden" name="period" value="{{ data.period }}"><input type="hidden" name="view" value="{{ data.view }}">
+              <div class="daygrid">
+                {% for d in sd.days %}
+                <label class="daychip"><input type="checkbox" name="day" value="{{ d.iso }}" {{ 'checked' if d.iso in e.off }}><span>{{ d.d }}.{{ '%02d'|format(d.m) }}</span></label>
+                {% endfor %}
+              </div>
+              <div class="emp-hint">Отметь дни, когда {{ e.name }} НЕ работал. В эти дни его доля котла уходит остальным.</div>
+              <button class="pill active" type="submit">Сохранить выходные</button>
+            </form>
+            {% else %}<div class="emp-hint">Выбери период «Месяц», чтобы отметить выходные.</div>{% endif %}
+          </details>
+          {% endif %}
           {% endfor %}
         </div>
       </div>

@@ -307,10 +307,26 @@ def compute_salary(point_keys, start, end):
                     continue
             lst.append(o)
         orders_by_point[k] = lst
-    # котёл мойщиков (делится поровну) и их число — по каждой точке
-    moy_pool = {k: _vol_pay(orders_by_point[k], MOY_RATE) for k in point_keys}
-    moy_cnt = {k: sum(1 for e in emps if e["active"] and e["role"] == "moyshik"
-                      and e["point"] == k) for k in point_keys}
+    # мойщики: котёл делится ПО ДНЯМ — за каждый день объём (по дате приёма)
+    # делится только между теми, кто в тот день работал (выходные исключены).
+    moy_by_point = {k: [e for e in emps if e["active"] and e["role"] == "moyshik"
+                        and e["point"] == k] for k in point_keys}
+    moy_earn, moy_days = {}, {}
+    for k in point_keys:
+        by_date = {}
+        for o in orders_by_point[k]:
+            d = o.get("date")
+            if d:
+                by_date.setdefault(d, []).append(o)
+        for d, ords in by_date.items():
+            iso = d.isoformat()
+            present = [m for m in moy_by_point[k] if iso not in m["off"]]
+            if not present:
+                continue
+            share = _vol_pay(ords, MOY_RATE) / len(present)
+            for m in present:
+                moy_earn[m["id"]] = moy_earn.get(m["id"], 0) + share
+                moy_days[m["id"]] = moy_days.get(m["id"], 0) + 1
 
     # авансы/выплаты из журнала (статья ЗП) — матчим по имени, для водителей по коду
     avans_auto = {e["id"]: 0.0 for e in emps}
@@ -344,9 +360,9 @@ def compute_salary(point_keys, start, end):
             earned = _vol_pay(myo, DRV_RATE)
             detail = f"{len(myo)} заказов"
         elif e["role"] == "moyshik":
-            cnt = moy_cnt.get(pt, 0)
-            earned = moy_pool.get(pt, 0) / cnt if cnt else 0
-            detail = f"котёл ÷ {cnt}" if cnt else "нет мойщиков"
+            earned = moy_earn.get(e["id"], 0)
+            dcount = moy_days.get(e["id"], 0)
+            detail = f"{dcount} раб. дней" + (f" · {len(e['off'])} вых." if e["off"] else "")
         else:
             earned = e["salary"]
             detail = "оклад/мес"
@@ -359,11 +375,19 @@ def compute_salary(point_keys, start, end):
     act = [r for r in rows if r["active"]]
     sdel = sum(r["earned"] for r in act if r["role"] in ("moyshik", "voditel"))
     fix = sum(r["earned"] for r in act if r["role"] in ("operator", "povar", "admin"))
+    # дни периода — для выбора выходных (если период не слишком длинный)
+    days = []
+    if start and end and (end - start).days <= 92:
+        cur = start
+        while cur <= end:
+            days.append({"iso": cur.isoformat(), "d": cur.day, "m": cur.month})
+            cur += dt.timedelta(days=1)
     return {
         "rows": rows, "total": round(sdel + fix), "sdel": round(sdel), "fix": round(fix),
         "avans": round(sum(r["avans"] for r in act)),
         "to_pay": round(sum(r["to_pay"] for r in act)),
         "count": len(act), "unmatched_sum": round(unmatched_sum), "unmatched_cnt": unmatched_cnt,
+        "days": days,
     }
 
 
@@ -403,6 +427,30 @@ def emp_edit(emp_id):
 @login_required
 def emp_del(emp_id):
     db.delete_employee(emp_id)
+    return redirect(_salary_back())
+
+
+@app.route("/employees/dayoff/<int:emp_id>", methods=["POST"])
+@login_required
+def emp_dayoff(emp_id):
+    """Сохраняет выходные сотрудника: заменяет дни в пределах показанного периода,
+    дни других месяцев сохраняет."""
+    e = db.get_employee(emp_id)
+    if not e:
+        return redirect(_salary_back())
+    period = request.form.get("period", "month")
+    start, end, _ = period_bounds(period)
+    submitted = set(request.form.getlist("day"))
+    kept = set()
+    for d in e["off"]:
+        try:
+            dd = dt.date.fromisoformat(d)
+        except ValueError:
+            continue
+        if start and end and start <= dd <= end:
+            continue  # этот день в показанном периоде — перезапишем
+        kept.add(d)
+    db.update_employee(emp_id, days_off=",".join(sorted(kept | submitted)))
     return redirect(_salary_back())
 
 

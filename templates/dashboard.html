@@ -281,7 +281,7 @@
     {% elif S == 'salary' %}
       {% set sd = data.salary %}
       {% set ROLES = [('moyshik','Мойщик'),('voditel','Водитель'),('operator','Оператор'),('povar','Повар'),('admin','Администратор')] %}
-      {% set CODES = ['МО','АМ','ОУ','НБ','ХД'] %}
+      {% set CODES = ['МО','АМ','ОУ','НБ'] %}
       <div class="kpi-grid">
         <div class="kpi-card"><div class="kpi-label">Фонд оплаты (всего)</div><div class="kpi-value">{{ fmt(sd.total) }} <span class="kpi-cur">сом.</span></div><div class="kpi-sub">{{ data.plabel }}</div></div>
         <div class="kpi-card"><div class="kpi-label">Сдельщики (мойщики+водители)</div><div class="kpi-value text-green">{{ fmt(sd.sdel) }} <span class="kpi-cur">сом.</span></div></div>

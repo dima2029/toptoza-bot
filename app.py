@@ -432,6 +432,18 @@ def emp_del(emp_id):
     return redirect(_salary_back())
 
 
+@app.route("/cash_open", methods=["POST"])
+@login_required
+def cash_open_set():
+    pt = request.form.get("point", "")
+    val = request.form.get("value") or 0
+    if pt in ("km9", "gulbuta"):
+        db.set_setting(f"cash_open_{pt}", float(val or 0))
+    period = request.form.get("period", "month")
+    view = request.form.get("view", pt or "total")
+    return redirect(url_for("dashboard") + f"?section=money&period={period}&view={view}")
+
+
 @app.route("/employees/dayoff/<int:emp_id>", methods=["POST"])
 @login_required
 def emp_dayoff(emp_id):
@@ -595,6 +607,10 @@ def dashboard():
 
     salary_data = compute_salary(point_keys, start, end) if section == "salary" else None
 
+    # касса: «было в кассе на начало» (ручная настройка по точке) + поток за период
+    cash_open = sum(float(db.get_setting(f"cash_open_{k}", 0) or 0) for k in point_keys)
+    cash_now = cash_open + agg["ostatok"]
+
     # месячный итог — из кэша (обновляется в ensure_synced раз в 2 мин)
     monthly_by_point = {k: _monthly_cache.get(k, dict(ZERO_MONTHLY))
                         for k in ["km9", "gulbuta"]}
@@ -608,6 +624,7 @@ def dashboard():
         "monthly": monthly, "monthly_by_point": monthly_by_point,
         "health": health, "insights": insights_data,
         "comparison": comparison, "orders_data": orders_data, "salary": salary_data, "q": q,
+        "cash_open": round(cash_open), "cash_now": round(cash_now),
         "period": period, "view": view, "section": section, "plabel": plabel,
         "range": (f"{dmin.strftime('%d.%m.%Y')} — {dmax.strftime('%d.%m.%Y')}"
                   if dmin and dmax else "нет данных"),

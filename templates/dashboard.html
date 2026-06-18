@@ -159,17 +159,7 @@
         </form>
       </div>
       <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">Было в кассе (начало)</div>
-          {% if data.view in ['km9','gulbuta'] %}
-          <form method="post" action="/cash_open" class="cashform">
-            <input type="hidden" name="point" value="{{ data.view }}"><input type="hidden" name="period" value="{{ data.period }}"><input type="hidden" name="view" value="{{ data.view }}">
-            <input name="value" type="number" step="any" value="{{ data.cash_open or '' }}" placeholder="0"><button class="pill" type="submit" title="Сохранить">💾</button>
-          </form>
-          <div class="kpi-sub">впиши остаток кассы на начало</div>
-          {% else %}
-          <div class="kpi-value">{{ fmt(data.cash_open) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">обе точки — выбери точку, чтобы изменить</div>
-          {% endif %}
-        </div>
+        <div class="kpi-card"><div class="kpi-label">Было в кассе (на начало периода)</div><div class="kpi-value">{{ fmt(data.cash_before) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">накоплено из всей истории до начала периода</div></div>
         <div class="kpi-card"><div class="kpi-label">{{ t('Приход') }}</div><div class="kpi-value text-green">{{ fmt(data.agg.income) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
         <div class="kpi-card"><div class="kpi-label">{{ t('Расход') }}</div><div class="kpi-value text-red">{{ fmt(data.agg.expense) }} <span class="kpi-cur">{{ CUR }}</span></div></div>
         <div class="kpi-card"><div class="kpi-label">Инкассация (в гл. кассу)</div><div class="kpi-value text-gold">{{ fmt(data.agg.cap_inkass) }} <span class="kpi-cur">{{ CUR }}</span></div><div class="kpi-sub">не входит в расход</div></div>

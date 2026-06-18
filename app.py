@@ -595,15 +595,6 @@ def dashboard():
 
     salary_data = compute_salary(point_keys, start, end) if section == "salary" else None
 
-    # касса — нарастающим итогом с самого начала (старт 0).
-    # «Было на начало периода» = весь поток ДО начала периода.
-    if start:
-        before = db.query_ops(point_keys, None, start - dt.timedelta(days=1))
-        cash_before = aggregate(before)["ostatok"]
-    else:
-        cash_before = 0.0
-    cash_now = cash_before + agg["ostatok"]
-
     # месячный итог — из кэша (обновляется в ensure_synced раз в 2 мин)
     monthly_by_point = {k: _monthly_cache.get(k, dict(ZERO_MONTHLY))
                         for k in ["km9", "gulbuta"]}
@@ -617,7 +608,6 @@ def dashboard():
         "monthly": monthly, "monthly_by_point": monthly_by_point,
         "health": health, "insights": insights_data,
         "comparison": comparison, "orders_data": orders_data, "salary": salary_data, "q": q,
-        "cash_before": round(cash_before), "cash_now": round(cash_now),
         "period": period, "view": view, "section": section, "plabel": plabel,
         "range": (f"{dmin.strftime('%d.%m.%Y')} — {dmax.strftime('%d.%m.%Y')}"
                   if dmin and dmax else "нет данных"),

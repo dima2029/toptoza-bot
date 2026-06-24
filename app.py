@@ -647,6 +647,14 @@ def manifest():
     return send_from_directory("static", "manifest.json", mimetype="application/manifest+json")
 
 
+@app.route("/sw.js")
+def service_worker():
+    resp = send_from_directory("static", "sw.js", mimetype="application/javascript")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 @app.route("/healthz")
 def healthz():
     return "ok", 200

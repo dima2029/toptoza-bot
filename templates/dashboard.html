@@ -297,7 +297,9 @@
           <tbody>
           {% for e in sd.rows %}
             <tr {{ 'style=opacity:.45' if not e.active }}>
-              <td><b>{{ e.name }}</b>{{ ' · '+e.driver_code if e.driver_code }}</td>
+              <td><b>{{ e.name }}</b>{{ ' · '+e.driver_code if e.driver_code }}
+                {% if e.daily %}<details class="dayoff"><summary style="font-size:11px">📅 по дням</summary>
+                  <div class="daygrid">{% for x in e.daily %}<span class="daychip" style="cursor:default">{{ x.date }}: {{ fmt(x.sum) }}</span>{% endfor %}</div></details>{% endif %}</td>
               <td>{{ e.role_label }}</td>
               {% if data.view=='total' %}<td>{{ POINT_NAME.get(e.point,'') }}</td>{% endif %}
               <td class="hide-mobile" style="color:var(--muted)">{{ e.detail }}</td>
@@ -312,6 +314,20 @@
         </table></div>
         {% if sd.unmatched_cnt %}<div class="card-body" style="padding-top:0"><div class="emp-hint">⚠️ Не распознано {{ sd.unmatched_cnt }} записей ЗП на {{ fmt(sd.unmatched_sum) }} сом. — имя в журнале не совпало ни с кем из справочника. Впиши имя в журнале точно как в списке, либо добавь аванс вручную.</div></div>{% endif %}
       </div>
+
+      {% if sd.day_table %}
+      <div class="card"><div class="card-header"><div class="card-title">Заработок по дням — фонд мойщиков</div><span class="badge badge-green">{{ data.plabel }}</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Дата</th><th>Фонд дня</th><th>Вышло чел.</th><th>Доля / чел.</th></tr></thead>
+          <tbody>
+          {% for d in sd.day_table %}
+            <tr><td>{{ d.date }}</td><td>{{ fmt(d.fund) }} сом.</td><td>{{ d.n }}</td><td><b class="text-green">{{ fmt(d.share) }}</b> сом.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        <div class="card-body" style="padding-top:0"><div class="emp-hint">Фонд дня = объём заказов этого дня × ставки мойщика (2/5/5/10). Доля = фонд ÷ вышедших. У каждого мойщика в таблице выше — «📅 по дням» с его дневными долями.</div></div>
+      </div>
+      {% endif %}
 
       <div class="card no-print hidden" id="empMgr"><div class="card-header"><div class="card-title">➕ Добавить / изменить / удалить</div>
           <button class="tbtn" onclick="document.getElementById('empMgr').classList.add('hidden')">✕ Закрыть</button></div>

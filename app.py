@@ -311,7 +311,8 @@ def compute_salary(point_keys, start, end):
     # делится только между теми, кто в тот день работал (выходные исключены).
     moy_by_point = {k: [e for e in emps if e["active"] and e["role"] == "moyshik"
                         and e["point"] == k] for k in point_keys}
-    moy_earn, moy_days = {}, {}
+    moy_earn, moy_days, moy_daily = {}, {}, {}
+    day_table = {}   # дата -> {fund, n, share} (по выбранным точкам суммарно)
     for k in point_keys:
         by_date = {}
         for o in orders_by_point[k]:
@@ -323,10 +324,27 @@ def compute_salary(point_keys, start, end):
             present = [m for m in moy_by_point[k] if iso not in m["off"]]
             if not present:
                 continue
-            share = _vol_pay(ords, MOY_RATE) / len(present)
+            fund = _vol_pay(ords, MOY_RATE)
+            share = fund / len(present)
             for m in present:
                 moy_earn[m["id"]] = moy_earn.get(m["id"], 0) + share
                 moy_days[m["id"]] = moy_days.get(m["id"], 0) + 1
+                moy_daily.setdefault(m["id"], []).append({"date": d.strftime("%d.%m"), "sum": round(share)})
+            dt_row = day_table.setdefault(d, {"fund": 0, "n": 0, "share": 0})
+            dt_row["fund"] += round(fund); dt_row["n"] = len(present); dt_row["share"] = round(share)
+
+    # водители: пул по коду машины делится между активными водителями этого кода (÷2)
+    code_pool = {}
+    for k in point_keys:
+        for o in orders_by_point[k]:
+            code = _driver_code(o.get("date_received"))
+            if code:
+                code_pool[(k, code)] = code_pool.get((k, code), 0) + _vol_pay([o], DRV_RATE)
+    drv_count = {}
+    for e in emps:
+        if e["active"] and e["role"] == "voditel" and e["driver_code"]:
+            key = (e["point"], e["driver_code"].upper())
+            drv_count[key] = drv_count.get(key, 0) + 1
 
     # авансы/выплаты из журнала (статья ЗП) — матчим по имени, для водителей по коду
     avans_auto = {e["id"]: 0.0 for e in emps}
@@ -356,9 +374,11 @@ def compute_salary(point_keys, start, end):
         pords = orders_by_point.get(pt, [])
         if e["role"] == "voditel":
             code = (e["driver_code"] or "").upper()
-            myo = [o for o in pords if _driver_code(o.get("date_received")) == code] if code else []
-            earned = _vol_pay(myo, DRV_RATE)
-            detail = f"{len(myo)} заказов"
+            key = (pt, code)
+            pool = code_pool.get(key, 0.0)
+            cnt = drv_count.get(key, 0) or 1
+            earned = pool / cnt
+            detail = f"код {code} ÷ {cnt} вод." if code else "нет кода машины"
         elif e["role"] == "moyshik":
             earned = moy_earn.get(e["id"], 0)
             dcount = moy_days.get(e["id"], 0)
@@ -372,7 +392,8 @@ def compute_salary(point_keys, start, end):
                      "earned": round(earned), "avans": round(avans),
                      "avans_manual": round(avans_manual),
                      "avans_jrnl": round(avans_auto.get(e["id"], 0.0)),
-                     "to_pay": round(earned - avans), "detail": detail})
+                     "to_pay": round(earned - avans), "detail": detail,
+                     "daily": moy_daily.get(e["id"], [])})
     rows.sort(key=lambda r: (not r["active"], -r["earned"]))
     act = [r for r in rows if r["active"]]
     sdel = sum(r["earned"] for r in act if r["role"] in ("moyshik", "voditel"))
@@ -390,6 +411,8 @@ def compute_salary(point_keys, start, end):
         "to_pay": round(sum(r["to_pay"] for r in act)),
         "count": len(act), "unmatched_sum": round(unmatched_sum), "unmatched_cnt": unmatched_cnt,
         "days": days,
+        "day_table": [{"date": d.strftime("%d.%m.%Y"), "fund": v["fund"], "n": v["n"], "share": v["share"]}
+                      for d, v in sorted(day_table.items())],
     }
 
 
